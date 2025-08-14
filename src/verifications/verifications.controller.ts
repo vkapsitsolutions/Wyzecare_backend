@@ -20,4 +20,11 @@ export class VerificationsController {
   verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     return this.verificationsService.verifyOtp(verifyOtpDto);
   }
+
+  @Post('forgot-password')
+  forgotPassword(@Body() initiateForgotPasswordDto: InitiateVerificationDto) {
+    return this.verificationsService.initiatePasswordReset(
+      initiateForgotPasswordDto,
+    );
+  }
 }

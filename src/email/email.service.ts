@@ -16,7 +16,7 @@ export class EmailService {
   async sendOtpMail(
     toMail: string,
     templateData: OtpPayload,
-    templateId: DYNAMIC_TEMPLATES.OTP_TEMPLATE_KEY,
+    templateId: DYNAMIC_TEMPLATES,
   ) {
     const mail: SendGridMail.MailDataRequired = {
       to: toMail,

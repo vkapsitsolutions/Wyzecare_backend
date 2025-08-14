@@ -50,6 +50,7 @@ import { SeederModule } from './seeder/seeder.module';
         SENDGRID_SENDER_MAIL: Joi.string().required(),
         SUPER_ADMIN_EMAIL: Joi.string().required(),
         SUPER_ADMIN_PASSWORD: Joi.string().required(),
+        FRONTEND_URL: Joi.string().required(),
       }),
     }),
 
