@@ -1,0 +1,3 @@
+export enum DYNAMIC_TEMPLATES {
+  OTP_TEMPLATE_KEY = 'd-0f1915f02ee941f68e40e8a4465be7ec',
+}
