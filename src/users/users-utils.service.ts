@@ -43,12 +43,15 @@ export class UserUtilsService {
   }
 
   async findByEmailForInternal(email: string): Promise<User | null> {
-    const user = await this.userRepository.findOne({
-      where: { email },
-      select: { password: true, refresh_token_hash: true },
-    });
-
-    return user;
+    return (
+      this.userRepository
+        .createQueryBuilder('user')
+        .addSelect(['user.password', 'user.refresh_token_hash'])
+        // .leftJoinAndSelect('user.role', 'role')
+        // .leftJoinAndSelect('user.organization', 'organization')
+        .where('user.email = :email', { email })
+        .getOne()
+    );
   }
 
   async setCurrentRefreshToken(userId: string, refreshToken: string) {
@@ -76,5 +79,10 @@ export class UserUtilsService {
     const valid = await argon2.verify(user.refresh_token_hash, refreshToken);
 
     return valid;
+  }
+
+  async clearCurrentRefreshToken(user: User): Promise<void> {
+    user.refresh_token_hash = '';
+    await this.userRepository.save(user);
   }
 }

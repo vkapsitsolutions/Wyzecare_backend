@@ -2,6 +2,9 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,9 +20,11 @@ import {
 import * as argon2 from 'argon2';
 import { LOGIN_PROVIDER } from './enums/login.provider.enum';
 import { JwtTokenService } from 'src/auth/jwt-token.service';
+import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
 
 @Injectable()
 export class UsersService {
+  private logger = new Logger(UsersService.name);
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -109,5 +114,39 @@ export class UsersService {
       message: 'User retrieved success',
       user,
     };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { email, token, password } = resetPasswordDto;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user =
+      await this.userUtilsService.findByEmailForInternal(normalizedEmail);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Validate token
+    const verification = await this.verificationsService.validateResetToken(
+      normalizedEmail,
+      token,
+    );
+
+    const passwordHash = await argon2.hash(password);
+
+    try {
+      user.password = passwordHash;
+      await this.userRepository.save(user);
+
+      await this.verificationsService.deleteVerification(verification.id);
+
+      //  Invalidate any existing sessions (clear refresh_token_hash)
+      await this.userUtilsService.clearCurrentRefreshToken(user);
+
+      return { success: true, message: 'Password reset successfully' };
+    } catch (err) {
+      this.logger.error(`resetPassword error: ${err}`);
+      throw new InternalServerErrorException('Failed to reset password');
+    }
   }
 }

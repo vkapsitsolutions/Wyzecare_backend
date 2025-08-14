@@ -19,18 +19,26 @@ import { DYNAMIC_TEMPLATES } from 'src/email/templates/email-templates.enum';
 import { InitiateVerificationDto } from './dto/initiate-verification.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { UserUtilsService } from 'src/users/users-utils.service';
+import { InitiatePasswordResetDto } from 'src/auth/dto/initiate-password-reset.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class VerificationsService {
   private logger = new Logger(VerificationsService.name);
   private readonly MAX_OTP_ATTEMPTS = 5;
+  private readonly frontendUrl: string;
 
   constructor(
     private readonly userUtilsService: UserUtilsService,
     @InjectRepository(Verification)
     private readonly verificationsRepository: Repository<Verification>,
-    protected readonly emailService: EmailService,
-  ) {}
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
+  ) {
+    this.frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
+  }
+
+  private readonly RESET_TOKEN_EXPIRY_MINUTES = 60; // 1 hour expiry
 
   async findLatestByEmail(email: string, type?: VerificationType) {
     return this.verificationsRepository.findOne({
@@ -91,7 +99,7 @@ export class VerificationsService {
         email,
         {
           app_name: 'WyzeCare',
-          current_year: 2025,
+          current_year: new Date().getFullYear(),
           expiry_minutes: expiryMinutes,
           otp,
           support_email: 'support@example.com',
@@ -179,5 +187,144 @@ export class VerificationsService {
   // deleting a verification record
   async deleteVerification(verificationId: string) {
     await this.verificationsRepository.delete({ id: verificationId });
+  }
+
+  /**
+   * Initiate password reset:
+   * - Check if user exists for the email
+   * - Generate a secure random token, hash it, store in verification_tokens with type PASSWORD_RESET
+   * - Send reset link email via EmailService
+   */
+  async initiatePasswordReset(
+    initiatePasswordResetDto: InitiatePasswordResetDto,
+  ) {
+    const { email } = initiatePasswordResetDto;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user =
+      await this.userUtilsService.findByEmailForInternal(normalizedEmail);
+    if (!user) {
+      this.logger.warn('Trying to recover not existing account, link not sent');
+      return {
+        success: true,
+        message: 'If the email exists, a reset link has been sent.',
+      };
+    }
+
+    // Generate a secure random token (e.g., 32 bytes hex)
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const expiresAt = new Date(
+      Date.now() + this.RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000,
+    );
+
+    try {
+      const existingVerification = await this.verificationsRepository.findOne({
+        where: {
+          user_id: user.id,
+          type: VerificationType.PASSWORD_RESET,
+          status: VerificationStatus.PENDING,
+        },
+        order: { created_at: 'DESC' },
+      });
+
+      if (existingVerification) {
+        existingVerification.token_hash = tokenHash;
+        existingVerification.expires_at = expiresAt;
+        existingVerification.attempts = 0;
+
+        await this.verificationsRepository.save(existingVerification);
+      } else {
+        const newVerification = this.verificationsRepository.create({
+          user: user,
+          user_id: user.id,
+          email: normalizedEmail,
+          type: VerificationType.PASSWORD_RESET,
+          token_hash: tokenHash,
+          expires_at: expiresAt,
+          status: VerificationStatus.PENDING,
+          attempts: 0,
+        });
+        await this.verificationsRepository.save(newVerification);
+      }
+
+      const resetLink = `${this.frontendUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(normalizedEmail)}`;
+
+      await this.emailService.sendOtpMail(
+        normalizedEmail,
+        {
+          app_name: 'WyzeCare',
+          current_year: 2025,
+          expiry_minutes: this.RESET_TOKEN_EXPIRY_MINUTES,
+          reset_link: resetLink,
+          support_email: 'support@example.com',
+        },
+        DYNAMIC_TEMPLATES.PASSWORD_RESET_TEMPLATE_KEY,
+      );
+
+      return {
+        success: true,
+        message: 'If the email exists, a reset link has been sent.',
+      };
+    } catch (err) {
+      this.logger.error(`initiatePasswordReset error: ${err}`);
+      throw new InternalServerErrorException(
+        'Failed to initiate password reset',
+      );
+    }
+  }
+
+  /**
+   * Validate reset token (does NOT update password — caller handles that).
+   * Returns the verification if valid.
+   */
+  async validateResetToken(
+    email: string,
+    submittedToken: string,
+  ): Promise<Verification> {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const verification = await this.verificationsRepository.findOne({
+      where: { email: normalizedEmail, type: VerificationType.PASSWORD_RESET },
+      order: { created_at: 'DESC' },
+    });
+
+    if (!verification) {
+      throw new BadRequestException('Invalid or expired reset link');
+    }
+
+    if (verification.status !== VerificationStatus.PENDING) {
+      throw new BadRequestException('Reset link already used or expired');
+    }
+
+    if (
+      verification.expires_at &&
+      verification.expires_at.getTime() < Date.now()
+    ) {
+      verification.status = VerificationStatus.REJECTED;
+      await this.verificationsRepository.save(verification).catch((e) => {
+        this.logger.warn('Could not mark expired verification rejected', e);
+      });
+      throw new BadRequestException('Reset link expired');
+    }
+
+    const submittedHash = crypto
+      .createHash('sha256')
+      .update(submittedToken)
+      .digest('hex');
+
+    if (submittedHash !== verification.token_hash) {
+      verification.attempts = (verification.attempts || 0) + 1;
+      if (verification.attempts >= this.MAX_OTP_ATTEMPTS) {
+        verification.status = VerificationStatus.REJECTED;
+      }
+      await this.verificationsRepository.save(verification).catch((e) => {
+        this.logger.warn('Failed to update verification attempts', e);
+      });
+      throw new BadRequestException('Invalid reset link');
+    }
+
+    return verification;
   }
 }
