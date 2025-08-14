@@ -7,6 +7,12 @@ import { LoggerModule } from 'nestjs-pino';
 import { UsersModule } from './users/users.module';
 import typeorm from './config/typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { RolesModule } from './roles/roles.module';
+import { VerificationsModule } from './verifications/verifications.module';
+import { EmailModule } from './email/email.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { SeederModule } from './seeder/seeder.module';
 
 @Module({
   imports: [
@@ -36,6 +42,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         POSTGRES_USER: Joi.string().required(),
         POSTGRES_PASSWORD: Joi.string().required(),
         POSTGRES_DB: Joi.string().required(),
+        JWT_ACCESS_SECRET: Joi.string().required(),
+        JWT_REFRESH_SECRET: Joi.string().required(),
+        JWT_ACCESS_TOKEN_EXPIRES: Joi.string().required(),
+        JWT_REFRESH_TOKEN_EXPIRES: Joi.string().required(),
+        SENDGRID_API_KEY: Joi.string().required(),
+        SENDGRID_SENDER_MAIL: Joi.string().required(),
+        SUPER_ADMIN_EMAIL: Joi.string().required(),
+        SUPER_ADMIN_PASSWORD: Joi.string().required(),
       }),
     }),
 
@@ -46,6 +60,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     }),
 
     UsersModule,
+
+    AuthModule,
+
+    RolesModule,
+
+    VerificationsModule,
+
+    EmailModule,
+
+    OrganizationsModule,
+
+    SeederModule,
   ],
   controllers: [AppController],
   providers: [AppService],
