@@ -3,15 +3,18 @@ pipeline {
 
     environment {
         NODE_ENV = 'production'
+        APP_DIR = '/var/www/node/wyze-care-backend'
+        PM2_ID = '17'
     }
 
     options {
         timestamps()
         ansiColor('xterm')
+        timeout(time: 20, unit: 'MINUTES')
     }
 
     stages {
-        stage('Code Checkout') {
+        stage('Checkout Code') {
             steps {
                 checkout scm
             }
@@ -19,19 +22,25 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                dir("${APP_DIR}") {
+                    sh 'npm ci'
+                }
             }
         }
 
         stage('Build') {
             steps {
-                sh 'npm run build'
+                dir("${APP_DIR}") {
+                    sh 'npm run build'
+                }
             }
         }
 
         stage('Test') {
             steps {
-                sh 'npm run test'
+                dir("${APP_DIR}") {
+                    sh 'npm run test'
+                }
             }
         }
 
@@ -40,18 +49,19 @@ pipeline {
                 branch 'main'
             }
             steps {
-                sh 'npm install -g @nestjs/mau'
-                sh 'mau deploy'
+                dir("${APP_DIR}") {
+                    sh 'pm2 restart ${PM2_ID}'
+                }
             }
         }
     }
 
     post {
         success {
-            echo 'Pipeline successfully completed.'
+            echo '✅ Deployment completed successfully.'
         }
         failure {
-            echo 'Pipeline failed!'
+            echo '❌ Deployment failed.'
         }
     }
 }
