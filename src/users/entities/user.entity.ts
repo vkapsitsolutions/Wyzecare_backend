@@ -13,6 +13,7 @@ import { USER_STATUS } from '../enums/user-status.enum';
 import { LOGIN_PROVIDER } from '../enums/login.provider.enum';
 import { Role } from 'src/roles/entities/role.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
+import { GENDER } from 'src/common/types/gender.enum';
 
 @Entity()
 export class User {
@@ -44,6 +45,9 @@ export class User {
 
   @Column({ type: 'timestamptz', nullable: true })
   last_login: Date;
+
+  @Column({ type: 'enum', enum: GENDER, nullable: true })
+  gender: GENDER;
 
   @Column({
     type: 'enum',

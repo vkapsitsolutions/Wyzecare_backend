@@ -6,9 +6,15 @@ import { User } from './entities/user.entity';
 import { UserUtilsService } from './users-utils.service';
 import { VerificationsModule } from 'src/verifications/verifications.module';
 import { AuthModule } from 'src/auth/auth.module';
+import { UploadsModule } from 'src/uploads/uploads.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), VerificationsModule, AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    VerificationsModule,
+    AuthModule,
+    UploadsModule,
+  ],
   controllers: [UsersController],
   providers: [UsersService, UserUtilsService],
   exports: [UserUtilsService],

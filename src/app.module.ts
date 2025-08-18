@@ -13,6 +13,7 @@ import { VerificationsModule } from './verifications/verifications.module';
 import { EmailModule } from './email/email.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { SeederModule } from './seeder/seeder.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -51,6 +52,10 @@ import { SeederModule } from './seeder/seeder.module';
         SUPER_ADMIN_EMAIL: Joi.string().required(),
         SUPER_ADMIN_PASSWORD: Joi.string().required(),
         FRONTEND_URL: Joi.string().required(),
+        AWS_ACCESS_KEY: Joi.string().required(),
+        AWS_SECRET_ACCESS_KEY: Joi.string().required(),
+        AWS_BUCKET_NAME: Joi.string().required(),
+        AWS_BUCKET_REGION: Joi.string().required(),
       }),
     }),
 
@@ -73,6 +78,8 @@ import { SeederModule } from './seeder/seeder.module';
     OrganizationsModule,
 
     SeederModule,
+
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

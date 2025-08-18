@@ -28,7 +28,7 @@ export class SeederService implements OnModuleInit {
       await this.seedRolesIfNotExists();
       await this.seedSuperAdminIfNotExists();
     } catch (err) {
-      this.logger.error('Error while seeding roles', err);
+      this.logger.error(`Error while seeding roles: ${err}`);
     }
   }
 

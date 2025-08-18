@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,6 +22,10 @@ import * as argon2 from 'argon2';
 import { LOGIN_PROVIDER } from './enums/login.provider.enum';
 import { JwtTokenService } from 'src/auth/jwt-token.service';
 import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UploadsService } from 'src/uploads/uploads.service';
+import { randomUUID } from 'crypto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -34,6 +39,8 @@ export class UsersService {
     private readonly verificationsService: VerificationsService,
 
     private readonly jwtTokenService: JwtTokenService,
+
+    private readonly uploadsService: UploadsService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -148,5 +155,74 @@ export class UsersService {
       this.logger.error(`resetPassword error: ${err}`);
       throw new InternalServerErrorException('Failed to reset password');
     }
+  }
+
+  async updateUser(
+    user: User,
+    updateUserDto: UpdateUserDto,
+    file?: Express.Multer.File,
+  ) {
+    const { firstName, lastName, gender } = updateUserDto;
+
+    if (firstName) user.first_name = firstName;
+    if (lastName) user.last_name = lastName;
+    if (gender) user.gender = gender;
+
+    if (file) {
+      if (user.photo) await this.uploadsService.deleteFile(user.photo);
+
+      const key = `users/profile-pic-${randomUUID()}`;
+      const uploadResult = await this.uploadsService.uploadFile(file, key);
+
+      if (uploadResult) {
+        user.photo = key;
+      }
+    }
+
+    const savedUser = await this.userRepository.save(user);
+    return {
+      success: true,
+      message: 'User updated successfully',
+      user: savedUser,
+    };
+  }
+
+  async changePassword(user: User, changePasswordDto: ChangePasswordDto) {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const loggedInUser = await this.userUtilsService.findByEmailForInternal(
+      user.email,
+    );
+
+    if (!loggedInUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isValidPassword = await argon2.verify(
+      loggedInUser?.password,
+      currentPassword,
+    );
+
+    if (!isValidPassword) {
+      throw new UnauthorizedException('Invalid current password');
+    }
+
+    const newPasswordHash = await argon2.hash(newPassword);
+
+    user.password = newPasswordHash;
+
+    const savedUser = await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: 'Password changed success',
+      user: savedUser,
+    };
   }
 }
