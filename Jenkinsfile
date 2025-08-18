@@ -36,7 +36,7 @@ pipeline {
         stage('Build') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'npx nest build'
+                    sh 'npm run build'
                 }
             }
         }
@@ -60,6 +60,7 @@ pipeline {
         }
     }
 }
+
 
 
 
