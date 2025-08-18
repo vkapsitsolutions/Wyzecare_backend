@@ -5,6 +5,7 @@ pipeline {
         NODE_ENV = 'production'
         PROJECT_DIR = '/var/www/node/wyze-care-backend'
         PM2_ID = '17'
+        PATH = "${env.PROJECT_DIR}/node_modules/.bin:${env.PATH}"
     }
 
     stages {
@@ -35,7 +36,7 @@ pipeline {
         stage('Build') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'npm run build'
+                    sh 'npx nest build'
                 }
             }
         }
@@ -59,6 +60,7 @@ pipeline {
         }
     }
 }
+
 
 
 
