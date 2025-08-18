@@ -3,12 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as argon2 from 'argon2';
+import { UploadsService } from 'src/uploads/uploads.service';
 
 @Injectable()
 export class UserUtilsService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+
+    private readonly uploadsService: UploadsService,
   ) {}
 
   async checkEmailExists(email: string): Promise<boolean> {
@@ -29,6 +32,11 @@ export class UserUtilsService {
         role: true,
       },
     });
+
+    if (user) {
+      const image = await this.uploadsService.getFile(user.photo);
+      if (image) user.photo = image;
+    }
 
     return user;
   }
