@@ -17,7 +17,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'npm ci'
+                    sh 'npm i'
                 }
             }
         }
@@ -49,4 +49,5 @@ pipeline {
         }
     }
 }
+
 
