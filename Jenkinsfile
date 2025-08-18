@@ -14,9 +14,19 @@ pipeline {
             }
         }
 
+
+        stage('Pull Changes') {
+            steps {
+                dir(PROJECT_DIR) {
+                    sh 'git pull origin main'
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
                 dir(PROJECT_DIR) {
+                    sh 'pwd'
                     sh 'npm i'
                 }
             }
@@ -49,5 +59,6 @@ pipeline {
         }
     }
 }
+
 
 
