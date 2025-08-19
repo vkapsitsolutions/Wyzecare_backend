@@ -224,7 +224,6 @@ export class VerificationsService {
         where: {
           user_id: user.id,
           type: VerificationType.PASSWORD_RESET,
-          status: VerificationStatus.PENDING,
         },
         order: { created_at: 'DESC' },
       });
@@ -232,6 +231,8 @@ export class VerificationsService {
       if (existingVerification) {
         existingVerification.token_hash = tokenHash;
         existingVerification.expires_at = expiresAt;
+        existingVerification.attempts = 0;
+        existingVerification.status = VerificationStatus.PENDING;
         existingVerification.attempts = 0;
 
         await this.verificationsRepository.save(existingVerification);

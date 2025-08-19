@@ -27,6 +27,7 @@ export class AuthService {
       this.jwtTokenService.generateTokens(user);
 
     await this.userUtilsService.setCurrentRefreshToken(user.id, refreshToken);
+
     return {
       success: true,
       message: 'Logged in successfully',

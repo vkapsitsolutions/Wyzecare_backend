@@ -115,7 +115,11 @@ export class UsersService {
     }
   }
 
-  getProfile(user: User) {
+  async getProfile(user: User) {
+    const photo = await this.uploadsService.getFile(user.photo);
+
+    if (photo) user.photo = photo;
+
     return {
       success: true,
       message: 'User retrieved success',
