@@ -1,5 +1,6 @@
 import {
   Controller,
+  Logger,
   Post,
   UnauthorizedException,
   UseGuards,
@@ -9,10 +10,15 @@ import { User } from 'src/users/entities/user.entity';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
 import { RefreshAuthGuard } from './guards/refresh-auth.guard';
+import { UserUtilsService } from 'src/users/users-utils.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private logger = new Logger(AuthController.name);
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userUtilsService: UserUtilsService,
+  ) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -20,6 +26,12 @@ export class AuthController {
     if (!user) {
       throw new UnauthorizedException('User not found in request');
     }
+
+    this.userUtilsService.setLastLogin(user).catch((error) => {
+      this.logger.error(
+        `Failed to set last login for user ${user.id}, error: ${error}`,
+      );
+    });
 
     return this.authService.login(user);
   }
