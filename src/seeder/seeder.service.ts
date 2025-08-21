@@ -10,7 +10,7 @@ import * as argon2 from 'argon2';
 import {
   PlanTypeEnum,
   SubscriptionPlan,
-} from 'src/subscriptions/entities/subcription-plans.entity';
+} from 'src/subscriptions/entities/subscription-plans.entity';
 
 @Injectable()
 export class SeederService implements OnModuleInit {

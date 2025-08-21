@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { SubscriptionPlan } from './entities/subcription-plans.entity';
+import { SubscriptionPlan } from './entities/subscription-plans.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BillingCycleEnum,
