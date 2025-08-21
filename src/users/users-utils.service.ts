@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as argon2 from 'argon2';
+import { Organization } from 'src/organizations/entities/organization.entity';
+import { Role } from 'src/roles/entities/role.entity';
 
 @Injectable()
 export class UserUtilsService {
@@ -90,5 +92,20 @@ export class UserUtilsService {
     user.last_login = new Date();
 
     await this.userRepository.save(user);
+  }
+
+  async assignOrganization(user: User, organization: Organization) {
+    if (user.organization) return user.organization;
+
+    user.organization = organization;
+
+    return await this.userRepository.save(user);
+  }
+
+  async assignRole(user: User, role: Role) {
+    if (user.role) return user.role;
+    user.role = role;
+
+    return await this.userRepository.save(user);
   }
 }
