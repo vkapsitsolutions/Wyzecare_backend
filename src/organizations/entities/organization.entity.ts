@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -11,6 +12,7 @@ import {
   LanguageEnum,
   TimezoneEnum,
 } from '../enums/organization.enum';
+import { OrganizationSubscription } from 'src/subscriptions/entities/organization-subscription.entity';
 
 @Entity({ name: 'organizations' })
 export class Organization {
@@ -68,4 +70,10 @@ export class Organization {
 
   @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updated_at: Date;
+
+  @OneToMany(
+    () => OrganizationSubscription,
+    (subscription) => subscription.organization,
+  )
+  subscriptions: OrganizationSubscription[];
 }

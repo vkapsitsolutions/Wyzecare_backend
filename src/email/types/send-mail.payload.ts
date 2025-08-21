@@ -1,4 +1,4 @@
-export interface OtpPayload {
+export interface MailPayload {
   // OTP PAYLOAD
   otp?: string;
   // PASSWORD RESET PAYLOAD

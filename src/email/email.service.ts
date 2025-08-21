@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as SendGridMail from '@sendgrid/mail';
-import { OtpPayload } from './templates/send-otp-mail.payload';
+import { MailPayload } from './types/send-mail.payload';
 import { DYNAMIC_TEMPLATES } from './templates/email-templates.enum';
 
 @Injectable()
@@ -13,9 +13,9 @@ export class EmailService {
     );
   }
 
-  async sendOtpMail(
+  async sendMail(
     toMail: string,
-    templateData: OtpPayload,
+    templateData: MailPayload,
     templateId: DYNAMIC_TEMPLATES,
   ) {
     const mail: SendGridMail.MailDataRequired = {

@@ -95,7 +95,7 @@ export class VerificationsService {
         Math.ceil((+otpExpires - Date.now()) / 60000),
       );
 
-      await this.emailService.sendOtpMail(
+      await this.emailService.sendMail(
         email,
         {
           app_name: 'WyzeCare',
@@ -252,7 +252,7 @@ export class VerificationsService {
 
       const resetLink = `${this.frontendUrl}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(normalizedEmail)}`;
 
-      await this.emailService.sendOtpMail(
+      await this.emailService.sendMail(
         normalizedEmail,
         {
           app_name: 'WyzeCare',

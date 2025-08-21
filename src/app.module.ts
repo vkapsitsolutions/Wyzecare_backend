@@ -14,6 +14,7 @@ import { EmailModule } from './email/email.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { SeederModule } from './seeder/seeder.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -80,6 +81,8 @@ import { UploadsModule } from './uploads/uploads.module';
     SeederModule,
 
     UploadsModule,
+
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
