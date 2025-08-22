@@ -65,6 +65,8 @@ pipeline {
                 # Try npx
                 echo "✅ Trying npx nest --version..."
                 npx nest --version
+                echo("ls -la node_modules/@nestjs/cli")
+                ls -la node_modules/@nestjs/cli
             '''
         }
     }
@@ -87,6 +89,7 @@ pipeline {
         }
     }
 }
+
 
 
 
