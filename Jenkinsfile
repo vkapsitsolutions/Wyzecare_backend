@@ -1,25 +1,23 @@
 pipeline {
-    agent any
+    agent { label 'node-deploy' }  // Ensure correct agent
 
     environment {
         NODE_ENV = 'production'
         PROJECT_DIR = '/var/www/node/wyze-care-backend'
-        PM2_ID = '17'
+        PM2_APP_NAME = 'wyze-care-backend'  // Use name, not ID
         PATH = "${env.PROJECT_DIR}/node_modules/.bin:${env.PATH}"
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Pull Latest Code') {
             steps {
-                checkout scm
-            }
-        }
-
-
-        stage('Pull Changes') {
-            steps {
-                dir(PROJECT_DIR) {
-                    sh 'git pull origin main'
+                script {
+                    dir(PROJECT_DIR) {
+                        if (!fileExists('package.json')) {
+                            error "Project directory invalid or missing files: ${PROJECT_DIR}"
+                        }
+                        sh 'git pull origin main'
+                    }
                 }
             }
         }
@@ -27,8 +25,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'pwd'
-                    sh 'npm i'
+                    sh 'npm ci --only=production'  // Deterministic install
                 }
             }
         }
@@ -41,11 +38,11 @@ pipeline {
             }
         }
 
-
-        stage('Deploy') {
+        stage('Restart Service') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'pm2 restart ${PM2_ID}'
+                    sh 'pm2 restart ${PM2_APP_NAME} || pm2 start ecosystem.config.js'  // Fallback
+                    sh 'pm2 save'  // Persist across reboots
                 }
             }
         }
@@ -53,15 +50,15 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment completed successfully.'
+            echo '✅ Deployment succeeded.'
+            // slackSend(...)
         }
         failure {
             echo '❌ Deployment failed.'
+            // slackSend(...)
+        }
+        always {
+            cleanWs()  // Clean workspace if used
         }
     }
 }
-
-
-
-
-
