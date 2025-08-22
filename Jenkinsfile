@@ -22,7 +22,7 @@ pipeline {
             steps {
                 dir(PROJECT_DIR) {
                     sh 'pwd'
-                    sh 'npm ci'
+                    sh 'npm ci --only=production'
                 }
             }
         }
@@ -54,3 +54,4 @@ pipeline {
         }
     }
 }
+
