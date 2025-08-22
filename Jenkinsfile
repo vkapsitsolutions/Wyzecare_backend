@@ -2,14 +2,17 @@ pipeline {
     agent any
 
     environment {
-        NODE_ENV = 'production'
         PROJECT_DIR = '/var/www/node/wyze-care-backend'
         PM2_ID = '17'
-        PATH = "${env.PROJECT_DIR}/node_modules/.bin:${env.PATH}"
     }
 
     stages {
-        
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Pull Changes') {
             steps {
                 dir(PROJECT_DIR) {
@@ -21,13 +24,12 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'pwd'
-                    sh 'npm ci --only=production'
+                    sh 'npm i'
                 }
             }
         }
 
-        stage('Build') {
+        stage('Build Project') {
             steps {
                 dir(PROJECT_DIR) {
                     sh 'npm run build'
@@ -35,23 +37,12 @@ pipeline {
             }
         }
 
-
         stage('Deploy') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'pm2 restart ${PM2_ID}'
+                    sh "pm2 reload ${PM2_ID}"
                 }
             }
         }
     }
-
-    post {
-        success {
-            echo '✅ Deployment completed successfully.'
-        }
-        failure {
-            echo '❌ Deployment failed.'
-        }
-    }
 }
-
