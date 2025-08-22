@@ -1,11 +1,15 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -16,10 +20,14 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { User } from './entities/user.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { imageValidator } from 'src/common/validators/image.validator';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-user.dto';
+import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
+import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
+import { Permission } from 'src/roles/enums/roles-permissions.enum';
+import { ListOrgUsersDto } from './dto/list-org-users.dto';
 
 @Controller('users')
 export class UsersController {
@@ -54,7 +62,7 @@ export class UsersController {
     }),
   )
   updateProfile(
-    @Body() body: UpdateUserDto,
+    @Body() body: UpdateProfileDto,
     @CurrentUser() user: User,
     @UploadedFile()
     file: Express.Multer.File | undefined,
@@ -69,5 +77,25 @@ export class UsersController {
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.usersService.changePassword(user, changePasswordDto);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_USERS)
+  @Get('organization-users')
+  listOrganizationUsers(
+    @CurrentUser() user: User,
+    @Query() query: ListOrgUsersDto,
+  ) {
+    if (!user.organization) {
+      throw new BadRequestException('User does not belong to an organization');
+    }
+    return this.usersService.listOrganizationUsers(user.organization.id, query);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_USERS)
+  @Get('organization-users/:id')
+  findById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.findById(id);
   }
 }

@@ -5,6 +5,9 @@ import { User } from './entities/user.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { InviteUsersDto } from './dto/invite-users.dto';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto';
+import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
+import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
+import { Permission } from 'src/roles/enums/roles-permissions.enum';
 
 @Controller('user-invitations')
 export class UserInvitationsController {
@@ -12,7 +15,8 @@ export class UserInvitationsController {
     private readonly userInvitationsService: UserInvitationsService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.INVITE_USERS)
   @Post('invite')
   async inviteUsers(
     @Body() dto: InviteUsersDto,

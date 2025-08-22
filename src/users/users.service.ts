@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserUtilsService } from './users-utils.service';
@@ -22,10 +22,11 @@ import * as argon2 from 'argon2';
 import { LOGIN_PROVIDER } from './enums/login.provider.enum';
 import { JwtTokenService } from 'src/auth/jwt-token.service';
 import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { UploadsService } from 'src/uploads/uploads.service';
 import { randomUUID } from 'crypto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-user.dto';
+import { ListOrgUsersDto } from './dto/list-org-users.dto';
 
 @Injectable()
 export class UsersService {
@@ -163,7 +164,7 @@ export class UsersService {
 
   async updateUser(
     user: User,
-    updateUserDto: UpdateUserDto,
+    updateUserDto: UpdateProfileDto,
     file?: Express.Multer.File,
   ) {
     const { firstName, lastName, gender } = updateUserDto;
@@ -227,6 +228,59 @@ export class UsersService {
       success: true,
       message: 'Password changed success',
       user: savedUser,
+    };
+  }
+
+  async listOrganizationUsers(organizationId: string, query: ListOrgUsersDto) {
+    const { role, status } = query;
+
+    const where: FindOptionsWhere<User> = {
+      organization: { id: organizationId },
+    };
+
+    if (role) {
+      where.role = { slug: role };
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    const users = await this.userRepository.find({
+      where,
+      relations: { role: true },
+      order: { created_at: 'DESC' },
+    });
+
+    return {
+      success: true,
+      message: 'User fetched',
+      data: users,
+    };
+  }
+
+  async findById(id: string) {
+    const user = await this.userRepository.findOne({
+      where: {
+        id,
+      },
+      relations: {
+        role: true,
+        organization: true,
+        created_by: true,
+        updated_by: true,
+        deleted_by: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User this id ${id} not found in the system`);
+    }
+
+    return {
+      success: true,
+      message: 'User fetched',
+      data: user,
     };
   }
 }

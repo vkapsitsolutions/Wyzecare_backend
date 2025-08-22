@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 import { GENDER } from 'src/common/types/gender.enum';
 
-export class UpdateUserDto {
+export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
