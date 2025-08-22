@@ -20,6 +20,12 @@ export class SubscriptionsController {
     return this.subscriptionsService.findAll();
   }
 
+  @Get('status')
+  @UseGuards(JwtAuthGuard)
+  getSubscriptionStatus(@CurrentUser() user: User) {
+    return this.subscriptionsService.getSubscriptionStatus(user);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.subscriptionsService.findOne(id);

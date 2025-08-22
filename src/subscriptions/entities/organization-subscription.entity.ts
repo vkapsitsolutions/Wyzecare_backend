@@ -9,7 +9,7 @@ import {
   JoinColumn,
   RelationId,
 } from 'typeorm';
-import { SubscriptionPlan } from './subcription-plans.entity';
+import { SubscriptionPlan } from './subscription-plans.entity';
 
 export enum SubscriptionStatusEnum {
   ACTIVE = 'active',

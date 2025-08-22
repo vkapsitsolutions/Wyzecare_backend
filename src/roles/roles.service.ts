@@ -63,4 +63,17 @@ export class RolesService {
       data: administratorRole,
     };
   }
+
+  async findRoleBySlug(slug: RoleName) {
+    const role = await this.roleRepo.findOne({ where: { slug } });
+    if (!role) {
+      this.logger.error(`Role not found for slug: ${slug}`);
+      throw new NotFoundException(`Role not found for slug: ${slug}`);
+    }
+    return {
+      success: true,
+      message: 'Role retrieved successfully',
+      data: role,
+    };
+  }
 }
