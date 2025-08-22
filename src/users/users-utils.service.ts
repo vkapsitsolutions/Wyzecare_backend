@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as argon2 from 'argon2';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { Role } from 'src/roles/entities/role.entity';
+import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 
 @Injectable()
 export class UserUtilsService {
@@ -107,5 +108,35 @@ export class UserUtilsService {
     user.role = role;
 
     return await this.userRepository.save(user);
+  }
+
+  async getOrganizationUserCounts(organizationId: string) {
+    const adminCounts = await this.userRepository.count({
+      where: {
+        organization: { id: organizationId },
+        role: { slug: RoleName.ADMINISTRATOR },
+      },
+      relations: { organization: true, role: true },
+    });
+
+    const userCounts = await this.userRepository.count({
+      where: {
+        organization: { id: organizationId },
+        role: { slug: Not(RoleName.ADMINISTRATOR) },
+      },
+      relations: { organization: true, role: true },
+    });
+
+    console.log('adminCounts :>> ', adminCounts);
+    console.log('userCounts :>> ', userCounts);
+
+    return {
+      success: true,
+      message: 'Organization user counts retrieved successfully',
+      data: {
+        adminCounts,
+        userCounts,
+      },
+    };
   }
 }

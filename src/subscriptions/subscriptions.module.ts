@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SubscriptionPlan } from './entities/subscription-plans.entity';
@@ -12,10 +12,11 @@ import { RolesModule } from 'src/roles/roles.module';
   imports: [
     TypeOrmModule.forFeature([SubscriptionPlan, OrganizationSubscription]),
     OrganizationsModule,
-    UsersModule,
+    forwardRef(() => UsersModule),
     RolesModule,
   ],
   providers: [SubscriptionsService],
   controllers: [SubscriptionsController],
+  exports: [SubscriptionsService],
 })
 export class SubscriptionsModule {}

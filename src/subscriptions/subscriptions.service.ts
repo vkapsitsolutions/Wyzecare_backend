@@ -109,4 +109,37 @@ export class SubscriptionsService {
       subscription,
     };
   }
+
+  async getSubscriptionStatus(loggedInUser: User) {
+    const organization = loggedInUser.organization;
+    if (!organization) {
+      return {
+        success: false,
+        message: 'User does not belong to any organization',
+        subscriptionStatus: null,
+      };
+    }
+
+    const subscription = await this.orgSubscriptionsRepo.findOne({
+      where: {
+        organization: { id: organization.id },
+        status: SubscriptionStatusEnum.ACTIVE,
+      },
+    });
+
+    if (!subscription) {
+      return {
+        success: false,
+        message: 'No active subscription found',
+        subscriptionStatus: null,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Subscription status retrieved successfully',
+      data: subscription,
+      subscriptionStatus: subscription.status,
+    };
+  }
 }
