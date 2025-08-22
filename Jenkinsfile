@@ -35,7 +35,7 @@ pipeline {
                 npm config set ignore-scripts false
 
                 echo "📦 Installing dependencies..."
-                npm install --verbose
+                npm install 
 
                 echo "🔍 Checking nest binary..."
                 ls -la node_modules/.bin/nest
@@ -61,6 +61,7 @@ pipeline {
         }
     }
 }
+
 
 
 
