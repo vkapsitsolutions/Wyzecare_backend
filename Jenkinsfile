@@ -28,49 +28,22 @@ pipeline {
                 dir(PROJECT_DIR) {
                    sh '''
                 set -e
-                echo "🗑️  Removing node_modules..."
-                rm -rf node_modules
+                echo "🧹 Cleaning..."
+                rm -rf node_modules package-lock.json
 
-                echo "📦 Installing dependencies with --unsafe-perm..."
-                export CXXFLAGS="--std=gnu++2a"
-                npm ci --only=production --unsafe-perm
-                which node
-                node -v
-                g++ --version
-                echo $PATH
-                
-                echo "🔧 Fixing bin script permissions..."
-                chmod -R u+x node_modules/.bin/* || true
+                echo "🔧 Setting npm config..."
+                npm config set ignore-scripts false
+                npm config set unsafe-perm true
+
+                echo "📦 Installing dependencies..."
+                npm install --verbose
+
+                echo "🔍 Checking nest binary..."
+                ls -la node_modules/.bin/nest
             '''
                 }
             }
         }
-
-        stage('Debug Build Env') {
-    steps {
-        dir(env.PROJECT_DIR) {
-            sh '''
-                # Check if nest binary exists
-                echo "🔍 Checking for nest binary..."
-                ls -la node_modules/.bin/nest || echo "❌ nest binary not found"
-
-                # Test if it's executable
-                echo "📦 Testing nest --version..."
-                ./node_modules/.bin/nest --version || echo "❌ Cannot run nest directly"
-
-                # Check PATH
-                echo "📌 Current PATH:"
-                echo "$PATH"
-
-                # Try npx
-                echo "✅ Trying npx nest --version..."
-                npx nest --version
-                echo("ls -la node_modules/@nestjs/cli")
-                ls -la node_modules/@nestjs/cli
-            '''
-        }
-    }
-}
 
         stage('Build Project') {
             steps {
@@ -89,6 +62,7 @@ pipeline {
         }
     }
 }
+
 
 
 
