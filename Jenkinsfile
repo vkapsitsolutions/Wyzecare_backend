@@ -33,7 +33,6 @@ pipeline {
 
                 echo "🔧 Setting npm config..."
                 npm config set ignore-scripts false
-                npm config set unsafe-perm true
 
                 echo "📦 Installing dependencies..."
                 npm install --verbose
@@ -62,6 +61,7 @@ pipeline {
         }
     }
 }
+
 
 
 
