@@ -24,7 +24,17 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'npm i'
+                   sh '''
+                set -e
+                echo "🗑️  Removing node_modules..."
+                rm -rf node_modules
+
+                echo "📦 Installing dependencies with --unsafe-perm..."
+                npm ci --only=production --unsafe-perm
+
+                echo "🔧 Fixing bin script permissions..."
+                chmod -R u+x node_modules/.bin/* || true
+            '''
                 }
             }
         }
@@ -46,3 +56,4 @@ pipeline {
         }
     }
 }
+
