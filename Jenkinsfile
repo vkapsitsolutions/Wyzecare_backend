@@ -30,8 +30,13 @@ pipeline {
                 rm -rf node_modules
 
                 echo "📦 Installing dependencies with --unsafe-perm..."
+                export CXXFLAGS="--std=gnu++2a"
                 npm ci --only=production --unsafe-perm
-
+                which node
+                node -v
+                g++ --version
+                echo $PATH
+                
                 echo "🔧 Fixing bin script permissions..."
                 chmod -R u+x node_modules/.bin/* || true
             '''
@@ -56,4 +61,5 @@ pipeline {
         }
     }
 }
+
 
