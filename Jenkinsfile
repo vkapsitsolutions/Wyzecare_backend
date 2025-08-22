@@ -4,6 +4,8 @@ pipeline {
     environment {
         PROJECT_DIR = '/var/www/node/wyze-care-backend'
         PM2_ID = '17'
+        PATH = "/var/www/node/wyze-care-backend/node_modules/.bin:${env.PATH}"
+
     }
 
     stages {
@@ -44,6 +46,30 @@ pipeline {
             }
         }
 
+        stage('Debug Build Env') {
+    steps {
+        dir(env.PROJECT_DIR) {
+            sh '''
+                # Check if nest binary exists
+                echo "🔍 Checking for nest binary..."
+                ls -la node_modules/.bin/nest || echo "❌ nest binary not found"
+
+                # Test if it's executable
+                echo "📦 Testing nest --version..."
+                ./node_modules/.bin/nest --version || echo "❌ Cannot run nest directly"
+
+                # Check PATH
+                echo "📌 Current PATH:"
+                echo "$PATH"
+
+                # Try npx
+                echo "✅ Trying npx nest --version..."
+                npx nest --version
+            '''
+        }
+    }
+}
+
         stage('Build Project') {
             steps {
                 dir(PROJECT_DIR) {
@@ -61,5 +87,6 @@ pipeline {
         }
     }
 }
+
 
 
