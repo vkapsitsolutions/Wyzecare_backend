@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -95,7 +95,13 @@ export class UserUtilsService {
     await this.userRepository.save(user);
   }
 
-  async assignOrganization(user: User, organization: Organization) {
+  async assignOrganization(currentUser: User, organization: Organization) {
+    const user = await this.userRepository.findOne({
+      where: { id: currentUser.id },
+      relations: { organization: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
     if (user.organization) return user.organization;
 
     user.organization = organization;
@@ -103,8 +109,14 @@ export class UserUtilsService {
     return await this.userRepository.save(user);
   }
 
-  async assignRole(user: User, role: Role) {
-    if (user.role) return user.role;
+  async assignRole(currentUser: User, role: Role) {
+    const user = await this.userRepository.findOne({
+      where: { id: currentUser.id },
+      relations: { role: true },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
     user.role = role;
 
     return await this.userRepository.save(user);
@@ -126,9 +138,6 @@ export class UserUtilsService {
       },
       relations: { organization: true, role: true },
     });
-
-    console.log('adminCounts :>> ', adminCounts);
-    console.log('userCounts :>> ', userCounts);
 
     return {
       success: true,
