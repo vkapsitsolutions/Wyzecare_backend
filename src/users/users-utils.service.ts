@@ -50,6 +50,7 @@ export class UserUtilsService {
     return (
       this.userRepository
         .createQueryBuilder('user')
+        .withDeleted()
         .addSelect(['user.password', 'user.refresh_token_hash'])
         // .leftJoinAndSelect('user.role', 'role')
         // .leftJoinAndSelect('user.organization', 'organization')

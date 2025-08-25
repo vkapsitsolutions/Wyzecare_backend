@@ -287,6 +287,8 @@ export class UsersService {
         updated_by: true,
         deleted_by: true,
       },
+
+      withDeleted: true,
     });
 
     if (!user) {
@@ -304,7 +306,11 @@ export class UsersService {
     };
   }
 
-  async toggleUserStatus(userId: string, organizationId: string) {
+  async toggleUserStatus(
+    userId: string,
+    organizationId: string,
+    loggedInUser: User,
+  ) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: { role: true, organization: true },
@@ -349,6 +355,8 @@ export class UsersService {
       user.status === USER_STATUS.ACTIVE
         ? USER_STATUS.INACTIVE
         : USER_STATUS.ACTIVE;
+
+    user.updated_by = loggedInUser;
     const savedUser = await this.userRepository.save(user);
 
     return {
@@ -362,6 +370,7 @@ export class UsersService {
     editUserDto: EditUserDto,
     userId: string,
     organizationId: string,
+    loggedInUser: User,
   ) {
     const { firstName, lastName, roleName, status } = editUserDto;
 
@@ -469,7 +478,10 @@ export class UsersService {
         if (status !== undefined) user.status = status;
         if (roleName) user.role = newRole;
 
+        user.updated_by = loggedInUser;
+
         const updated = await repo.save(user);
+
         return updated;
       },
     );
@@ -481,7 +493,7 @@ export class UsersService {
     };
   }
 
-  async deleteUser(userId: string, organizationId: string) {
+  async deleteUser(userId: string, organizationId: string, loggedInUser: User) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: { role: true, organization: true },
@@ -498,6 +510,10 @@ export class UsersService {
     if (user.role?.slug === RoleName.ADMINISTRATOR) {
       throw new BadRequestException('Cannot delete an administrator');
     }
+
+    user.deleted_by = loggedInUser;
+
+    await this.userRepository.save(user);
 
     await this.userRepository.softDelete(user.id);
 

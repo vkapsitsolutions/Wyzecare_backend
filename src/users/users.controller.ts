@@ -122,33 +122,46 @@ export class UsersController {
   @RequirePermissions(Permission.MANAGE_USERS)
   @Post('toggle-user-status/:id')
   toggleUserStatus(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) userId: string,
+    @CurrentUser() loggedInUser: User,
   ) {
-    if (!user.organization) return;
-    return this.usersService.toggleUserStatus(id, user.organization.id);
+    if (!loggedInUser.organization) return;
+    return this.usersService.toggleUserStatus(
+      userId,
+      loggedInUser.organization.id,
+      loggedInUser,
+    );
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_USERS)
   @Patch('edit-user/:id')
   updateUser(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseUUIDPipe) userToEditId: string,
     @Body() updateUserDto: EditUserDto,
     @CurrentUser() user: User,
   ) {
     if (!user.organization) return;
-    return this.usersService.editUser(updateUserDto, id, user.organization.id);
+    return this.usersService.editUser(
+      updateUserDto,
+      userToEditId,
+      user.organization.id,
+      user,
+    );
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.MANAGE_USERS)
   @Delete('delete/:id')
   deleteUser(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) userToDeleteId: string,
+    @CurrentUser() loggedInUser: User,
   ) {
-    if (!user.organization) return;
-    return this.usersService.deleteUser(userId, user.organization.id);
+    if (!loggedInUser.organization) return;
+    return this.usersService.deleteUser(
+      userToDeleteId,
+      loggedInUser.organization.id,
+      loggedInUser,
+    );
   }
 }
