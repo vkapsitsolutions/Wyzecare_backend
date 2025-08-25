@@ -33,7 +33,6 @@ import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { EditUserDto } from './dto/edit-user.dto';
 import { RolesService } from 'src/roles/roles.service';
-import { object } from 'joi';
 
 @Injectable()
 export class UsersService {
@@ -467,6 +466,33 @@ export class UsersService {
       success: true,
       message: 'User updated',
       data: saved,
+    };
+  }
+
+  async deleteUser(userId: string, organizationId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: { role: true, organization: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${userId} not found`);
+    }
+
+    if (!user.organization || user.organization.id !== organizationId) {
+      throw new ForbiddenException('User does not belong to this organization');
+    }
+
+    if (user.role?.slug === RoleName.ADMINISTRATOR) {
+      throw new BadRequestException('Cannot delete an administrator');
+    }
+
+    await this.userRepository.softDelete(user.id);
+
+    return {
+      success: true,
+      message: 'User deleted successfully',
+      user,
     };
   }
 }

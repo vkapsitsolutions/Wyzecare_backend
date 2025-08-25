@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class PermissionsEnumChange1756115662965 implements MigrationInterface {
-  name = 'PermissionsEnumChange1756115662965';
+export class PermissionsEnumChange1756120414758 implements MigrationInterface {
+  name = 'PermissionsEnumChange1756120414758';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
