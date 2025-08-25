@@ -106,7 +106,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.VIEW_REPORTS)
+  @RequirePermissions(Permission.MANAGE_USERS)
   @Get('get-counts')
   getCounts(@CurrentUser() user: User) {
     if (!user.organization) {

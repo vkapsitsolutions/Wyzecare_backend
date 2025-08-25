@@ -33,6 +33,7 @@ import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { EditUserDto } from './dto/edit-user.dto';
 import { RolesService } from 'src/roles/roles.service';
+import { object } from 'joi';
 
 @Injectable()
 export class UsersService {
@@ -262,6 +263,12 @@ export class UsersService {
       order: { created_at: 'DESC' },
     });
 
+    for (const user of users) {
+      if (user.photo) {
+        user.photo = (await this.uploadsService.getFile(user.photo)) || '';
+      }
+    }
+
     return {
       success: true,
       message: 'User fetched',
@@ -285,6 +292,10 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException(`User this id ${id} not found in the system`);
+    }
+
+    if (user.photo) {
+      user.photo = (await this.uploadsService.getFile(user.photo)) || '';
     }
 
     return {

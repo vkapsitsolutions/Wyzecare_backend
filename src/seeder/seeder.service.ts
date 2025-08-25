@@ -52,14 +52,12 @@ export class SeederService implements OnModuleInit {
         title: 'Administrator',
         slug: RoleName.ADMINISTRATOR,
         permissions: [
+          Permission.VIEW_ALL_PATIENTS,
+          Permission.EDIT_PATIENTS,
           Permission.MANAGE_USERS,
-          Permission.INVITE_USERS,
-          Permission.MANAGE_ROLES,
           Permission.VIEW_REPORTS,
           Permission.MANAGE_ALERTS,
           Permission.SYSTEM_SETTINGS,
-          Permission.MANAGE_CONSENT,
-          Permission.EXPORT_DATA,
         ],
         description: 'Manage users, roles and system level settings.',
         is_active: true,
@@ -68,9 +66,7 @@ export class SeederService implements OnModuleInit {
         title: 'Care Coordinator',
         slug: RoleName.CARE_COORDINATOR,
         permissions: [
-          Permission.VIEW_ASSIGNED_PATIENTS,
           Permission.EDIT_PATIENTS,
-          Permission.MANAGE_PATIENT_ACCESS,
           Permission.VIEW_REPORTS,
           Permission.MANAGE_ALERTS,
         ],
@@ -80,10 +76,7 @@ export class SeederService implements OnModuleInit {
       {
         title: 'Viewer',
         slug: RoleName.VIEWER,
-        permissions: [
-          Permission.VIEW_ASSIGNED_PATIENTS,
-          Permission.VIEW_REPORTS,
-        ],
+        permissions: [Permission.VIEW_REPORTS],
         description: 'Read-only access to assigned patients and reports.',
         is_active: true,
       },
