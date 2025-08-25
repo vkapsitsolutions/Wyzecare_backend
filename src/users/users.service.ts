@@ -431,14 +431,26 @@ export class UsersService {
           );
         }
 
+        // If current user is an administrator and request is to set status INACTIVE,
+        // ensure there's at least one other admin.
+        const isCurrentlyAdmin = user.role?.slug === RoleName.ADMINISTRATOR;
+        // const willBeAdmin = newRole?.slug === RoleName.ADMINISTRATOR;
+        const wantsToBecomeInactive = status === USER_STATUS.INACTIVE;
+
+        // If they're currently an admin and are being set inactive (and there is only one admin), block it.
+        if (isCurrentlyAdmin && wantsToBecomeInactive && adminCount <= 1) {
+          throw new BadRequestException(
+            'Cannot deactivate the only administrator in the organization',
+          );
+        }
+        // --------------------------------------------------
+
         const effectiveRoleSlug = newRole?.slug ?? user.role?.slug;
         const willBeActive = status
           ? status === USER_STATUS.ACTIVE
           : user.status === USER_STATUS.ACTIVE;
         const isCurrentlyActive = user.status === USER_STATUS.ACTIVE;
 
-        // If user is not currently active but will be active, and they are NOT an admin,
-        // then check seat limit.
         if (
           !isCurrentlyActive &&
           willBeActive &&
