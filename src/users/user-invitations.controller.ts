@@ -16,7 +16,7 @@ export class UserInvitationsController {
   ) {}
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.INVITE_USERS)
+  @RequirePermissions(Permission.MANAGE_USERS)
   @Post('invite')
   async inviteUsers(
     @Body() dto: InviteUsersDto,
