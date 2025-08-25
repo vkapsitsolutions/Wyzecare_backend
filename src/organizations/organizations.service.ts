@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Organization } from './entities/organization.entity';
 import { Repository } from 'typeorm';
@@ -29,6 +29,11 @@ export class OrganizationsService {
       where: { id },
       relations: ['subscriptions'],
     });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
     return {
       success: true,
       message: 'Organization retrieved successfully',

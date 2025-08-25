@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -23,7 +24,11 @@ export class SubscriptionsController {
   @Get('status')
   @UseGuards(JwtAuthGuard)
   getSubscriptionStatus(@CurrentUser() user: User) {
-    return this.subscriptionsService.getSubscriptionStatus(user);
+    if (!user.organization)
+      throw new NotFoundException('Organization not found');
+    return this.subscriptionsService.getSubscriptionStatus(
+      user.organization?.id,
+    );
   }
 
   @Get(':id')

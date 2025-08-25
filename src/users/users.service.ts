@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -8,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { FindOptionsWhere, Not, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserUtilsService } from './users-utils.service';
@@ -27,6 +28,11 @@ import { randomUUID } from 'crypto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-user.dto';
 import { ListOrgUsersDto } from './dto/list-org-users.dto';
+import { USER_STATUS } from './enums/user-status.enum';
+import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
+import { RoleName } from 'src/roles/enums/roles-permissions.enum';
+import { EditUserDto } from './dto/edit-user.dto';
+import { RolesService } from 'src/roles/roles.service';
 
 @Injectable()
 export class UsersService {
@@ -42,6 +48,10 @@ export class UsersService {
     private readonly jwtTokenService: JwtTokenService,
 
     private readonly uploadsService: UploadsService,
+
+    private readonly subscriptionsService: SubscriptionsService,
+
+    private readonly rolesService: RolesService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -281,6 +291,171 @@ export class UsersService {
       success: true,
       message: 'User fetched',
       data: user,
+    };
+  }
+
+  async toggleUserStatus(userId: string, organizationId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: { role: true, organization: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${userId} not found`);
+    }
+
+    if (!user.organization || user.organization.id !== organizationId) {
+      throw new ForbiddenException('User does not belong to this organization');
+    }
+
+    if (user.role?.slug === RoleName.ADMINISTRATOR) {
+      throw new BadRequestException('Cannot change status of an administrator');
+    }
+
+    const subscriptionResp =
+      await this.subscriptionsService.getSubscriptionStatus(organizationId);
+    const maxActiveUsers = subscriptionResp?.data?.subscription_plan?.max_users;
+
+    if (
+      typeof maxActiveUsers === 'number' &&
+      user.status === USER_STATUS.INACTIVE
+    ) {
+      const currentActiveUsers = await this.userRepository.count({
+        where: {
+          organization: { id: organizationId },
+          role: { slug: Not(RoleName.ADMINISTRATOR) },
+          status: USER_STATUS.ACTIVE,
+        },
+      });
+
+      if (currentActiveUsers >= maxActiveUsers) {
+        throw new BadRequestException(
+          `You cannot have more than ${maxActiveUsers} active users as per current subscription`,
+        );
+      }
+    }
+
+    user.status =
+      user.status === USER_STATUS.ACTIVE
+        ? USER_STATUS.INACTIVE
+        : USER_STATUS.ACTIVE;
+    const savedUser = await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: 'User status updated',
+      data: savedUser,
+    };
+  }
+
+  async editUser(
+    editUserDto: EditUserDto,
+    userId: string,
+    organizationId: string,
+  ) {
+    const { firstName, lastName, roleName, status } = editUserDto;
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: { role: true, organization: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${userId} not found`);
+    }
+
+    if (!user.organization || user.organization.id !== organizationId) {
+      throw new ForbiddenException('User does not belong to this organization');
+    }
+
+    let newRole = user.role;
+    if (roleName) {
+      const { data: role } = await this.rolesService.findRoleBySlug(roleName);
+      newRole = role;
+      if (!newRole) {
+        throw new NotFoundException(`Role ${roleName} not found`);
+      }
+    }
+
+    const subscriptionResp =
+      await this.subscriptionsService.getSubscriptionStatus(organizationId);
+    const maxActiveUsers = subscriptionResp?.data?.subscription_plan?.max_users;
+    const maxAdmins = subscriptionResp?.data?.subscription_plan?.max_admins;
+
+    const saved = await this.userRepository.manager.transaction(
+      async (manager) => {
+        const repo = manager.getRepository(User);
+
+        const activeNonAdminCount = await repo.count({
+          where: {
+            organization: { id: organizationId },
+            role: { slug: Not(RoleName.ADMINISTRATOR) },
+            status: USER_STATUS.ACTIVE,
+          },
+        });
+
+        const adminCount = await repo.count({
+          where: {
+            organization: { id: organizationId },
+            role: { slug: RoleName.ADMINISTRATOR },
+          },
+        });
+
+        const becomingAdmin =
+          user.role?.slug !== RoleName.ADMINISTRATOR &&
+          newRole?.slug === RoleName.ADMINISTRATOR;
+        if (typeof maxAdmins === 'number' && becomingAdmin) {
+          if (adminCount >= maxAdmins) {
+            throw new BadRequestException(
+              `You cannot have more than ${maxAdmins} administrators as per current subscription`,
+            );
+          }
+        }
+
+        const demotingAdmin =
+          user.role?.slug === RoleName.ADMINISTRATOR &&
+          newRole?.slug !== RoleName.ADMINISTRATOR;
+        if (demotingAdmin && adminCount <= 1) {
+          throw new BadRequestException(
+            'Cannot remove the only administrator from the organization',
+          );
+        }
+
+        const effectiveRoleSlug = newRole?.slug ?? user.role?.slug;
+        const willBeActive = status
+          ? status === USER_STATUS.ACTIVE
+          : user.status === USER_STATUS.ACTIVE;
+        const isCurrentlyActive = user.status === USER_STATUS.ACTIVE;
+
+        // If user is not currently active but will be active, and they are NOT an admin,
+        // then check seat limit.
+        if (
+          !isCurrentlyActive &&
+          willBeActive &&
+          effectiveRoleSlug !== RoleName.ADMINISTRATOR &&
+          typeof maxActiveUsers === 'number'
+        ) {
+          if (activeNonAdminCount >= maxActiveUsers) {
+            throw new BadRequestException(
+              `You cannot have more than ${maxActiveUsers} active users as per current subscription`,
+            );
+          }
+        }
+
+        if (firstName !== undefined) user.first_name = firstName;
+        if (lastName !== undefined) user.last_name = lastName;
+        if (status !== undefined) user.status = status;
+        if (roleName) user.role = newRole;
+
+        const updated = await repo.save(user);
+        return updated;
+      },
+    );
+
+    return {
+      success: true,
+      message: 'User updated',
+      data: saved,
     };
   }
 }
