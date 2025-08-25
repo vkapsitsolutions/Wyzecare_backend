@@ -17,7 +17,7 @@ export class AuthService {
 
   async validateUser(username: string, pass: string): Promise<User | null> {
     const user = await this.userUtilsService.findByEmailForInternal(username);
-    if (user?.status !== USER_STATUS.INACTIVE)
+    if (user?.status === USER_STATUS.INACTIVE)
       throw new BadRequestException(
         'Your account is inactive. Please contact administrator',
       );
