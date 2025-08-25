@@ -1,8 +1,9 @@
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserUtilsService } from 'src/users/users-utils.service';
+import { USER_STATUS } from 'src/users/enums/user-status.enum';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -18,6 +19,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: { sub: string }) {
     const user = await this.userUtilsService.findById(payload.sub);
+
+    if (user?.deleted_at) {
+      throw new BadRequestException(
+        'Your account has been deleted. Please contact administrator',
+      );
+    }
+
+    if (user?.status === USER_STATUS.INACTIVE) {
+      throw new BadRequestException(
+        'Your account is inactive. Please contact administrator',
+      );
+    }
 
     return user;
   }
