@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -138,5 +139,16 @@ export class UsersController {
   ) {
     if (!user.organization) return;
     return this.usersService.editUser(updateUserDto, id, user.organization.id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_USERS)
+  @Delete('delete/:id')
+  deleteUser(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @CurrentUser() user: User,
+  ) {
+    if (!user.organization) return;
+    return this.usersService.deleteUser(userId, user.organization.id);
   }
 }

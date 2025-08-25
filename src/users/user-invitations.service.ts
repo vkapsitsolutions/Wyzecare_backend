@@ -95,6 +95,7 @@ export class UserInvitationsService {
     const existingUsers = await this.usersRepository.find({
       where: { email: In(emails) },
       select: ['email'],
+      withDeleted: true,
     });
 
     if (existingUsers.length > 0) {
@@ -192,7 +193,6 @@ export class UserInvitationsService {
 
       const invitation = this.invitationsRepository.create({
         organization: currentUser.organization,
-        // store lowercased email consistently
         email: invite.email.toLowerCase(),
         role,
         invitation_token: token,
