@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { SubscriptionPlan } from './entities/subscription-plans.entity';
@@ -110,8 +111,14 @@ export class SubscriptionsService {
     };
   }
 
-  async getSubscriptionStatus(loggedInUser: User) {
-    const organization = loggedInUser.organization;
+  async getSubscriptionStatus(organizationId: string) {
+    const { data: organization } =
+      await this.organizationsService.getOneOrganization(organizationId);
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
     if (!organization) {
       return {
         success: false,
@@ -125,6 +132,10 @@ export class SubscriptionsService {
         organization: { id: organization.id },
         status: SubscriptionStatusEnum.ACTIVE,
       },
+
+      relations: {
+        subscription_plan: true,
+      },
     });
 
     if (!subscription) {
@@ -132,6 +143,7 @@ export class SubscriptionsService {
         success: false,
         message: 'No active subscription found',
         subscriptionStatus: null,
+        subscriptionPlan: null,
       };
     }
 

@@ -6,6 +6,7 @@ import * as argon2 from 'argon2';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { Role } from 'src/roles/entities/role.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
+import { USER_STATUS } from './enums/user-status.enum';
 
 @Injectable()
 export class UserUtilsService {
@@ -139,12 +140,34 @@ export class UserUtilsService {
       relations: { organization: true, role: true },
     });
 
+    const activeAdminCounts = await this.userRepository.count({
+      where: {
+        organization: { id: organizationId },
+        role: { slug: RoleName.ADMINISTRATOR },
+        status: USER_STATUS.ACTIVE,
+      },
+      relations: { organization: true, role: true },
+    });
+
+    const activeUserCounts = await this.userRepository.count({
+      where: {
+        organization: { id: organizationId },
+        role: { slug: Not(RoleName.ADMINISTRATOR) },
+        status: USER_STATUS.ACTIVE,
+      },
+      relations: { organization: true, role: true },
+    });
+
     return {
       success: true,
       message: 'Organization user counts retrieved successfully',
       data: {
         adminCounts,
         userCounts,
+        activeAdminCounts,
+        activeUserCounts,
+        inactiveAdminCounts: adminCounts - activeAdminCounts,
+        inactiveUserCounts: userCounts - activeUserCounts,
       },
     };
   }

@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -28,10 +29,15 @@ import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
 import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { ListOrgUsersDto } from './dto/list-org-users.dto';
+import { UserUtilsService } from './users-utils.service';
+import { EditUserDto } from './dto/edit-user.dto';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly userUtilsService: UserUtilsService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -97,5 +103,40 @@ export class UsersController {
   @Get('organization-users/:id')
   findById(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findById(id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.VIEW_REPORTS)
+  @Get('get-counts')
+  getCounts(@CurrentUser() user: User) {
+    if (!user.organization) {
+      throw new NotFoundException('User does not belong to an organization');
+    }
+    return this.userUtilsService.getOrganizationUserCounts(
+      user.organization.id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_USERS)
+  @Post('toggle-user-status/:id')
+  toggleUserStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    if (!user.organization) return;
+    return this.usersService.toggleUserStatus(id, user.organization.id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_USERS)
+  @Patch('edit-user/:id')
+  updateUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateUserDto: EditUserDto,
+    @CurrentUser() user: User,
+  ) {
+    if (!user.organization) return;
+    return this.usersService.editUser(updateUserDto, id, user.organization.id);
   }
 }

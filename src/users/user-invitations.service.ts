@@ -60,7 +60,9 @@ export class UserInvitationsService {
     }
 
     const { data: activeSubscription, subscriptionStatus } =
-      await this.subscriptionService.getSubscriptionStatus(currentUser);
+      await this.subscriptionService.getSubscriptionStatus(
+        currentUser.organization.id,
+      );
 
     if (subscriptionStatus !== SubscriptionStatusEnum.ACTIVE) {
       throw new BadRequestException(
@@ -255,10 +257,14 @@ export class UserInvitationsService {
       throw new BadRequestException('Invitation role is invalid.');
     }
 
+    if (!invitation.invited_by?.organization?.id) {
+      throw new BadRequestException('Invalid organization.');
+    }
+
     // --- Validate subscription & counts BEFORE creating the user ---
     const { data: activeSubscription, subscriptionStatus } =
       await this.subscriptionService.getSubscriptionStatus(
-        invitation.invited_by,
+        invitation.invited_by?.organization?.id,
       );
 
     if (subscriptionStatus !== SubscriptionStatusEnum.ACTIVE) {
