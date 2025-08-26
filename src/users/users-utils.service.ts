@@ -194,4 +194,16 @@ export class UserUtilsService {
       return 'user not found';
     }
   }
+
+  async getUserCountByRoles(organizationId: string, roleName: RoleName) {
+    const userCount = await this.userRepository.count({
+      where: {
+        organization: { id: organizationId },
+        role: { slug: roleName },
+      },
+      relations: { organization: true, role: true },
+    });
+
+    return userCount;
+  }
 }

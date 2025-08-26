@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { Permission, RoleName } from './enums/roles-permissions.enum';
+import { UserUtilsService } from 'src/users/users-utils.service';
 
 @Injectable()
 export class RolesService {
@@ -12,6 +13,8 @@ export class RolesService {
   constructor(
     @InjectRepository(Role)
     private readonly roleRepo: Repository<Role>,
+
+    private readonly userUtilsService: UserUtilsService,
   ) {}
 
   getSystemPermissions() {
@@ -21,10 +24,20 @@ export class RolesService {
     };
   }
 
-  async findAll() {
+  async findAll(organizationId?: string) {
     const roles = await this.roleRepo.find({
       where: { slug: Not(RoleName.SUPER_ADMIN) },
     });
+
+    if (organizationId) {
+      for (const role of roles) {
+        role.userCount = await this.userUtilsService.getUserCountByRoles(
+          organizationId,
+          role.slug,
+        );
+      }
+    }
+
     return {
       success: true,
       message: 'Roles retrieved successfully',

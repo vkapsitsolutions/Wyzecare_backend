@@ -4,7 +4,6 @@ import {
   HttpStatus,
   Injectable,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { SubscriptionPlan } from './entities/subscription-plans.entity';
@@ -114,10 +113,6 @@ export class SubscriptionsService {
   async getSubscriptionStatus(organizationId: string) {
     const { data: organization } =
       await this.organizationsService.getOneOrganization(organizationId);
-
-    if (!organization) {
-      throw new NotFoundException('Organization not found');
-    }
 
     if (!organization) {
       return {
