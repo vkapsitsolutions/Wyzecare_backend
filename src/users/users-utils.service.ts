@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as argon2 from 'argon2';
 import { Organization } from 'src/organizations/entities/organization.entity';
@@ -171,5 +171,27 @@ export class UserUtilsService {
         inactiveUserCounts: userCounts - activeUserCounts,
       },
     };
+  }
+
+  async getDeletedUsers() {
+    return this.userRepository.find({
+      where: { deleted_at: Not(IsNull()) },
+      withDeleted: true,
+    });
+  }
+
+  async restoreDeletedUser(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+
+    if (user) {
+      user.deleted_at = null;
+      user.deleted_by = null;
+      return this.userRepository.save(user);
+    } else {
+      return 'user not found';
+    }
   }
 }
