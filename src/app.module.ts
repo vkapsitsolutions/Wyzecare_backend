@@ -15,6 +15,8 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { SeederModule } from './seeder/seeder.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PatientsModule } from './patients/patients.module';
+import { PatientConsentsModule } from './patient-consents/patient-consents.module';
 
 @Module({
   imports: [
@@ -83,6 +85,10 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     UploadsModule,
 
     SubscriptionsModule,
+
+    PatientsModule,
+
+    PatientConsentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
