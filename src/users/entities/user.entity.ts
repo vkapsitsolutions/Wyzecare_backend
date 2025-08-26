@@ -85,7 +85,7 @@ export class User {
     nullable: true,
   })
   @JoinColumn({ name: 'deleted_by_id' })
-  deleted_by: User;
+  deleted_by: User | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
@@ -94,5 +94,5 @@ export class User {
   updated_at: Date;
 
   @DeleteDateColumn({ type: 'timestamptz' })
-  deleted_at: Date;
+  deleted_at: Date | null;
 }

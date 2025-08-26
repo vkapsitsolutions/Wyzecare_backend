@@ -164,4 +164,16 @@ export class UsersController {
       loggedInUser,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('temp/deleted-users')
+  getDeletedUsers() {
+    return this.userUtilsService.getDeletedUsers();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('temp/restore/:id')
+  restoreDeletedUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.userUtilsService.restoreDeletedUser(id);
+  }
 }
