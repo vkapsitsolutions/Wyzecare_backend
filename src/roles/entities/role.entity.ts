@@ -45,4 +45,7 @@ export class Role {
 
   @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updated_at: Date;
+
+  // User count for the role
+  userCount?: number;
 }

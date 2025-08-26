@@ -32,6 +32,7 @@ import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { ListOrgUsersDto } from './dto/list-org-users.dto';
 import { UserUtilsService } from './users-utils.service';
 import { EditUserDto } from './dto/edit-user.dto';
+import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
 
 @Controller('users')
 export class UsersController {
@@ -99,7 +100,7 @@ export class UsersController {
     return this.usersService.listOrganizationUsers(user.organization.id, query);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard, ActiveSubscriptionsGuard)
   @RequirePermissions(Permission.MANAGE_USERS)
   @Get('organization-users/:id')
   findById(@Param('id', ParseUUIDPipe) id: string) {
