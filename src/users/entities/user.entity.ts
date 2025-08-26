@@ -95,4 +95,8 @@ export class User {
 
   @DeleteDateColumn({ type: 'timestamptz' })
   deleted_at: Date | null;
+
+  get fullName(): string {
+    return `${this.first_name} ${this.last_name}`;
+  }
 }
