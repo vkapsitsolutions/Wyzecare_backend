@@ -21,6 +21,7 @@ import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PatientContactDto } from './dto/patient-contacts.dto';
 import { GetPatientsQuery } from './dto/get-patients-query.dto';
+import { MedicalInfoDto } from './dto/medical-info.dto';
 
 @Controller('patients')
 export class PatientsController {
@@ -92,6 +93,22 @@ export class PatientsController {
       user,
       patientContactData,
       user.organization_id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
+  @Post(':id/medical-info')
+  updatePatientMedicalInfo(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() medicalInfoData: MedicalInfoDto,
+  ) {
+    return this.patientsService.addOrUpdateMedicalInfo(
+      id,
+      user.organization_id,
+      medicalInfoData,
+      user,
     );
   }
 }

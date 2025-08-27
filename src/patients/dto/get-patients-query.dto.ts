@@ -6,4 +6,7 @@ export class GetPatientsQuery extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(PatientStatusEnum)
   status: PatientStatusEnum;
+
+  @IsOptional()
+  keyword: string;
 }
