@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Patient } from './entities/patient.entity';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { User } from 'src/users/entities/user.entity';
 import { PatientContactDto } from './dto/patient-contacts.dto';
@@ -15,6 +15,8 @@ import { PatientContact } from './entities/patient-contact.entity';
 import { PatientEmergencyContact } from './entities/patient-emergency-contact.entity';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { GetPatientsQuery } from './dto/get-patients-query.dto';
+import { MedicalInfoDto } from './dto/medical-info.dto';
+import { PatientMedicalInfo } from './entities/patient-medical-info.entity';
 
 @Injectable()
 export class PatientsService {
@@ -56,26 +58,57 @@ export class PatientsService {
     organizationId: string,
     getPatientsQuery: GetPatientsQuery,
   ) {
-    const { status, page, limit } = getPatientsQuery ?? {};
+    const { status, page, limit, keyword } = getPatientsQuery ?? {};
 
     const pageNum = Math.max(1, Number(page) || 1);
     const perPage = Math.min(100, Math.max(1, Number(limit) || 20));
 
-    // build where clause
-    const where: FindOptionsWhere<Patient> = {
-      organization_id: organizationId,
-    };
+    const qb = this.patientRepository
+      .createQueryBuilder('patient')
+      .where('patient.organization_id = :orgId', { orgId: organizationId });
+
     if (status) {
-      where.status = status;
+      qb.andWhere('patient.status = :status', { status });
     }
 
-    const [patients, total] = await this.patientRepository.findAndCount({
-      where,
-      skip: (pageNum - 1) * perPage,
-      take: perPage,
-      order: { created_at: 'DESC' },
-    });
+    const rawKeyword = keyword?.toString().trim();
+    if (rawKeyword && rawKeyword.length > 0) {
+      const tokens = rawKeyword.split(/\s+/).slice(0, 5); // limit tokens to 5 for safety
 
+      console.log('tokens :>> ', tokens);
+
+      tokens.forEach((token, idx) => {
+        const paramName = `kw${idx}`;
+        const likeValue = `%${token}%`;
+
+        qb.andWhere(
+          new Brackets((qbInner) => {
+            qbInner
+              .where(`patient.first_name ILIKE :${paramName}`, {
+                [paramName]: likeValue,
+              })
+              .orWhere(`patient.last_name ILIKE :${paramName}`, {
+                [paramName]: likeValue,
+              })
+              .orWhere(`patient.patient_id ILIKE :${paramName}`, {
+                [paramName]: likeValue,
+              })
+              .orWhere(`patient.preferred_name ILIKE :${paramName}`, {
+                [paramName]: likeValue,
+              })
+              .orWhere(`patient.notes ILIKE :${paramName}`, {
+                [paramName]: likeValue,
+              });
+          }),
+        );
+      });
+    }
+
+    qb.orderBy('patient.created_at', 'DESC')
+      .skip((pageNum - 1) * perPage)
+      .take(perPage);
+
+    const [patients, total] = await qb.getManyAndCount();
     const totalPages = Math.max(1, Math.ceil(total / perPage));
 
     return {
@@ -160,7 +193,13 @@ export class PatientsService {
       notes,
     } = updatePatientDto;
 
-    const { patient } = await this.findById(id);
+    const patient = await this.patientRepository.findOne({
+      where: { id: patientId },
+    });
+
+    if (!patient) {
+      throw new NotFoundException(`Patient with ID ${patientId} not found`);
+    }
 
     if (patient.organization_id !== organizationId) {
       throw new ForbiddenException(
@@ -207,7 +246,13 @@ export class PatientsService {
     organizationId: string,
   ) {
     // 1) ensure patient exists
-    const { patient } = await this.findById(patientId);
+    const patient = await this.patientRepository.findOne({
+      where: { id: patientId },
+    });
+
+    if (!patient) {
+      throw new NotFoundException(`Patient with ID ${patientId} not found`);
+    }
 
     if (patient.organization_id !== organizationId) {
       throw new ForbiddenException('Patient belongs to different organization');
@@ -343,12 +388,14 @@ export class PatientsService {
           });
         }
 
-        // *** NEW: update patient.updated_by_id with the logged in user id (audit) ***
-        // Only update if loggedInUser.id is present
+        // updated by
         if (loggedInUser?.id) {
-          await patientRepo.update({ id: patientId }, {
-            updated_by_id: loggedInUser.id,
-          } as Partial<Patient>);
+          await patientRepo.update(
+            { id: patientId },
+            {
+              updated_by_id: loggedInUser.id,
+            },
+          );
         }
 
         return {
@@ -357,6 +404,81 @@ export class PatientsService {
             'Patient contact and emergency contacts updated successfully',
           contact: savedContact,
           emergencyContacts: savedEmergencies,
+        };
+      },
+    );
+
+    return result;
+  }
+
+  async addOrUpdateMedicalInfo(
+    patientId: string,
+    organizationId: string,
+    medicalInfoDto: MedicalInfoDto,
+    loggedInUser: User,
+  ) {
+    const patient = await this.patientRepository.findOne({
+      where: { id: patientId },
+    });
+
+    if (!patient) {
+      throw new NotFoundException(`Patient with ID ${patientId} not found`);
+    }
+
+    if (patient.organization_id !== organizationId) {
+      throw new ForbiddenException('Patient belongs to different organization');
+    }
+
+    const result = await this.patientRepository.manager.transaction(
+      async (manager) => {
+        const medicalInfoRepo = manager.getRepository(PatientMedicalInfo);
+        const patientRepo = manager.getRepository(Patient);
+
+        // Build Medical info payload only with defined fields (so we don't overwrite with undefined)
+        const rawMedicalInfoPayload: Partial<PatientMedicalInfo> = {
+          patient_id: patientId,
+          conditions: medicalInfoDto.conditions,
+          medications: medicalInfoDto.medications,
+          allergies: medicalInfoDto.allergies,
+          primary_physician: medicalInfoDto.primary_physician,
+        };
+
+        const medicalInfoPayload = this.stripUndefined(rawMedicalInfoPayload);
+
+        // upsert Medical Info payload (one-to-one)
+        let savedMedicalInfo: PatientMedicalInfo;
+        const existingMedicalInfo = await medicalInfoRepo.findOne({
+          where: { patient_id: patientId },
+        });
+
+        if (existingMedicalInfo) {
+          // update only provided fields
+          await medicalInfoRepo.update(
+            { id: existingMedicalInfo.id },
+            medicalInfoPayload,
+          );
+          savedMedicalInfo = await medicalInfoRepo.findOneOrFail({
+            where: { id: existingMedicalInfo.id },
+          });
+        } else {
+          const created = medicalInfoRepo.create(medicalInfoPayload);
+          savedMedicalInfo = await medicalInfoRepo.save(created);
+        }
+
+        // updated by
+        if (loggedInUser?.id) {
+          await patientRepo.update(
+            { id: patientId },
+            {
+              updated_by_id: loggedInUser.id,
+            },
+          );
+        }
+
+        return {
+          success: true,
+          message: 'Patient medical information updated successfully',
+          medicalInfo: savedMedicalInfo,
         };
       },
     );
