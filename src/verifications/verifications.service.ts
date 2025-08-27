@@ -21,6 +21,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { UserUtilsService } from 'src/users/users-utils.service';
 import { InitiatePasswordResetDto } from 'src/auth/dto/initiate-password-reset.dto';
 import { ConfigService } from '@nestjs/config';
+import { USER_STATUS } from 'src/users/enums/user-status.enum';
 
 @Injectable()
 export class VerificationsService {
@@ -203,12 +204,17 @@ export class VerificationsService {
 
     const user =
       await this.userUtilsService.findByEmailForInternal(normalizedEmail);
+
     if (!user) {
-      this.logger.warn('Trying to recover not existing account, link not sent');
-      return {
-        success: true,
-        message: 'If the email exists, a reset link has been sent.',
-      };
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.status !== USER_STATUS.ACTIVE) {
+      throw new BadRequestException('User not active');
+    }
+
+    if (user.deleted_at) {
+      throw new BadRequestException('User deleted');
     }
 
     // Generate a secure random token (e.g., 32 bytes hex)

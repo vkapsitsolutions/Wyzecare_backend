@@ -20,6 +20,9 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ name: 'organization_id', nullable: true })
+  organization_id: string;
+
   @ManyToOne(() => Organization, { nullable: true })
   @JoinColumn({ name: 'organization_id' })
   organization?: Organization;

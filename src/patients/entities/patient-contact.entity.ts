@@ -67,7 +67,7 @@ export class PatientContact {
     nullable: false,
     default: 'US',
   })
-  country!: string;
+  country?: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   created_at!: Date;

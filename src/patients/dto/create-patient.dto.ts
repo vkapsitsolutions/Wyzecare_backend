@@ -1,6 +1,5 @@
-import { Transform } from 'class-transformer';
 import {
-  IsDate,
+  IsDateString,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -21,22 +20,19 @@ export class CreatePatientDto {
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(5)
   patientId: string;
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(2)
   preferredName: string;
 
   @IsEnum(GENDER)
   gender: GENDER;
 
-  @IsDate()
-  @Transform(
-    ({ value }: { value: string | number | Date }): { value: Date } => ({
-      value: new Date(value),
-    }),
-  )
-  dateOfBirth: Date;
+  @IsDateString()
+  dateOfBirth: string;
 
   @IsOptional()
   @IsNotEmpty()
