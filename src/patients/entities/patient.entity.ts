@@ -190,35 +190,35 @@ export class Patient {
   )
   emergencyContacts: PatientEmergencyContact[];
 
+  @OneToOne(() => PatientMedicalInfo, (medicalInfo) => medicalInfo.patient)
+  medicalInfo: PatientMedicalInfo;
+
   // consent related tables
 
   @OneToMany(() => ConsentHistory, (consentHistory) => consentHistory.patient)
   consentHistory: ConsentHistory[];
 
-  @OneToOne(() => PatientMedicalInfo, (medicalInfo) => medicalInfo.patient)
-  medicalInfo: PatientMedicalInfo;
-
   @OneToMany(
     () => CommunicationPreferences,
     (communicationPreferences) => communicationPreferences.patient,
   )
-  communicationPreferences: CommunicationPreferences[];
+  communicationPreferences: CommunicationPreferences;
 
   @OneToMany(
     () => HIPAAAuthorization,
     (hipaaAuthorization) => hipaaAuthorization.patient,
   )
-  hipaaAuthorizations: HIPAAAuthorization[];
+  hipaaAuthorizations: HIPAAAuthorization;
 
   @OneToMany(
     () => PrivacyPreferences,
     (privacyPreferences) => privacyPreferences.patient,
   )
-  privacyPreferences: PrivacyPreferences[];
+  privacyPreferences: PrivacyPreferences;
 
   @OneToMany(
     () => TelehealthConsent,
     (telehealthConsent) => telehealthConsent.patient,
   )
-  telehealthConsent: TelehealthConsent[];
+  telehealthConsent: TelehealthConsent;
 }

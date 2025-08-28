@@ -4,7 +4,6 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
-  Patch,
   Post,
   Query,
   UseGuards,
@@ -22,10 +21,20 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PatientContactDto } from './dto/patient-contacts.dto';
 import { GetPatientsQuery } from './dto/get-patients-query.dto';
 import { MedicalInfoDto } from './dto/medical-info.dto';
+import { HipaaAuthorizationService } from 'src/patient-consents/services/hipaa-authorization.service';
 
 @Controller('patients')
 export class PatientsController {
-  constructor(private readonly patientsService: PatientsService) {}
+  constructor(
+    private readonly patientsService: PatientsService,
+    private readonly hipaaAuthorizationService: HipaaAuthorizationService,
+  ) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get('consents/hipaa-authorization/purposes')
+  listHipaaAuthorizationPurposes() {
+    return this.hipaaAuthorizationService.listAuthorizationPurposes();
+  }
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
   @RequirePermissions(Permission.VIEW_ALL_PATIENTS)
@@ -53,28 +62,12 @@ export class PatientsController {
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
   @RequirePermissions(Permission.EDIT_PATIENTS)
   @Post()
-  createPatient(
+  createPatientOrUpdatePatient(
     @CurrentUser() user: User,
-    @Body() createPatientDto: CreatePatientDto,
+    @Body() createPatientDto: CreatePatientDto | UpdatePatientDto,
   ) {
-    return this.patientsService.createNewPatient(
+    return this.patientsService.upsertPatient(
       createPatientDto,
-      user.organization_id,
-      user,
-    );
-  }
-
-  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
-  @RequirePermissions(Permission.EDIT_PATIENTS)
-  @Patch(':id')
-  updatePatient(
-    @CurrentUser() user: User,
-    @Body() updatePatientDto: UpdatePatientDto,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.patientsService.updatePatient(
-      id,
-      updatePatientDto,
       user.organization_id,
       user,
     );

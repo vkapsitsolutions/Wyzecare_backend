@@ -41,6 +41,6 @@ export class ConsentHistory {
   @JoinColumn({ name: 'actor_id' })
   actor?: User;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;
 }

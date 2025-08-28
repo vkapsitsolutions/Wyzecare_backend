@@ -6,6 +6,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -18,7 +19,7 @@ export class TelehealthConsent {
   @Column('uuid', { name: 'patient_id', nullable: false })
   patient_id!: string;
 
-  @ManyToOne(() => Patient, {
+  @OneToOne(() => Patient, {
     nullable: false,
     onDelete: 'CASCADE',
   })
@@ -28,7 +29,7 @@ export class TelehealthConsent {
   @Column({ name: 'consent_given', type: 'boolean', default: false })
   consent_given!: boolean;
 
-  @Column({ name: 'consent_date', type: 'timestamp', nullable: true })
+  @Column({ name: 'consent_date', type: 'timestamptz', nullable: true })
   consent_date?: Date;
 
   @Column({
@@ -49,9 +50,12 @@ export class TelehealthConsent {
   @JoinColumn({ name: 'created_by' })
   creator?: User;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @Column({ name: 'version', type: 'varchar', length: 20, default: 'v1.0' })
+  version!: string;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updated_at!: Date;
 }
