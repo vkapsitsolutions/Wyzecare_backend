@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MinLength,
 } from 'class-validator';
 import { GENDER } from 'src/common/types/gender.enum';
@@ -53,4 +54,8 @@ export class CreatePatientDto {
   @IsOptional()
   @IsNotEmpty()
   careTeam?: string;
+
+  @IsUUID()
+  @IsOptional()
+  id: string; // only in case of update
 }

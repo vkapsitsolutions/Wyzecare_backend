@@ -7,8 +7,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
-import { AuthorizedRecipientEnum } from '../enums/concents.enum';
+import {
+  AuthorizedRecipientEnum,
+  DataRetentionPeriodEnum,
+} from '../enums/concents.enum';
 import { User } from 'src/users/entities/user.entity';
 
 @Entity({ name: 'privacy_preferences' })
@@ -19,7 +23,7 @@ export class PrivacyPreferences {
   @Column('uuid', { name: 'patient_id', nullable: false })
   patient_id!: string;
 
-  @ManyToOne(() => Patient, (patient) => patient.privacyPreferences, {
+  @OneToOne(() => Patient, (patient) => patient.privacyPreferences, {
     nullable: false,
     onDelete: 'CASCADE',
   })
@@ -38,6 +42,20 @@ export class PrivacyPreferences {
   @Column({ name: 'data_sharing_restrictions', type: 'text', nullable: true })
   data_sharing_restrictions?: string;
 
+  @Column({ name: 'allow_call_recording', type: 'boolean', default: false })
+  allow_call_recording!: boolean;
+
+  @Column({ name: 'recording_restrictions', type: 'text', nullable: true })
+  recording_restrictions?: string;
+
+  @Column({
+    name: 'data_retention_period',
+    type: 'enum',
+    enum: DataRetentionPeriodEnum,
+    default: DataRetentionPeriodEnum.FIVE_YEARS,
+  })
+  data_retention_period!: DataRetentionPeriodEnum;
+
   @Column({ name: 'created_by', type: 'uuid', nullable: true })
   created_by?: string;
 
@@ -45,9 +63,12 @@ export class PrivacyPreferences {
   @JoinColumn({ name: 'created_by' })
   creator?: User;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @Column({ name: 'version', type: 'varchar', length: 20, default: 'v1.0' })
+  version!: string;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updated_at!: Date;
 }

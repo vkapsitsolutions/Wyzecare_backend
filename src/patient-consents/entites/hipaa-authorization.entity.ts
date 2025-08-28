@@ -9,6 +9,10 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import {
+  AuthorizedPurpose,
+  HipaaAuthorizationStatus,
+} from '../enums/concents.enum';
 
 @Entity({ name: 'hipaa_authorizations' })
 export class HIPAAAuthorization {
@@ -54,25 +58,26 @@ export class HIPAAAuthorization {
 
   @Column({
     name: 'authorized_purposes',
-    type: 'text',
+    type: 'enum',
+    enum: AuthorizedPurpose,
     array: true,
     nullable: true,
   })
-  authorized_purposes?: string[];
+  authorized_purposes?: AuthorizedPurpose[];
 
   @Column({
     name: 'status',
-    type: 'varchar',
-    length: 50,
+    type: 'enum',
+    enum: HipaaAuthorizationStatus,
     nullable: false,
-    default: 'not_granted',
+    default: HipaaAuthorizationStatus.NOT_GRANTED,
   })
-  status!: string;
+  status!: HipaaAuthorizationStatus;
 
-  @Column({ name: 'signed_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'signed_at', type: 'timestamptz', nullable: true })
   signed_at?: Date;
 
-  @Column({ name: 'expires_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'expires_at', type: 'timestamptz', nullable: true })
   expires_at?: Date;
 
   @Column({ name: 'version', type: 'varchar', length: 20, default: 'v1.0' })
@@ -85,9 +90,9 @@ export class HIPAAAuthorization {
   @JoinColumn({ name: 'created_by' })
   creator?: User;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updated_at!: Date;
 }

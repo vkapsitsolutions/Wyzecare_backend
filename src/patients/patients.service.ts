@@ -122,11 +122,12 @@ export class PatientsService {
     };
   }
 
-  async createNewPatient(
-    createPatientDto: CreatePatientDto,
+  async upsertPatient(
+    dto: CreatePatientDto | UpdatePatientDto,
     organizationId: string,
     loggedInUser: User,
   ) {
+    // extract fields (works for both Create & Update DTO shapes)
     const {
       firstName,
       lastName,
@@ -138,16 +139,100 @@ export class PatientsService {
       floor,
       roomNumber,
       notes,
-    } = createPatientDto;
+      id, // only when update
+    } = dto;
 
-    const existingPatient = await this.patientRepository.findOne({
-      where: { patientId },
-    });
+    // 1) If id provided -> update flow
+    if (id) {
+      const patient = await this.patientRepository.findOne({ where: { id } });
+      if (!patient) {
+        throw new NotFoundException(`Patient with ID ${id} not found`);
+      }
 
-    if (existingPatient) {
-      throw new ForbiddenException(
-        `Patient with ID ${patientId} already exists`,
-      );
+      if (patient.organization_id !== organizationId) {
+        throw new ForbiddenException(
+          'You do not have permission to update this patient',
+        );
+      }
+
+      // If incoming patientId is different, ensure uniqueness
+      if (patientId && patient.patientId !== patientId) {
+        const existingPatient = await this.findByPatientIdNumber(patientId);
+        if (existingPatient && existingPatient.id !== patient.id) {
+          throw new ConflictException(
+            `Patient with ID ${patientId} already exists`,
+          );
+        }
+      }
+
+      // Apply only provided fields
+      if (firstName !== undefined) patient.firstName = firstName;
+      if (lastName !== undefined) patient.lastName = lastName;
+      if (patientId !== undefined) patient.patientId = patientId;
+      if (dateOfBirth !== undefined) patient.dateOfBirth = dateOfBirth;
+      if (gender !== undefined) patient.gender = gender;
+      if (preferredName !== undefined) patient.preferredName = preferredName;
+      if (careTeam !== undefined) patient.careTeam = careTeam;
+      if (floor !== undefined) patient.floor = floor;
+      if (roomNumber !== undefined) patient.roomNumber = roomNumber;
+      if (notes !== undefined) patient.notes = notes;
+
+      patient.updated_by_id = loggedInUser.id;
+
+      const updatedPatient = await this.patientRepository.save(patient);
+
+      return {
+        success: true,
+        message: 'Patient updated successfully',
+        patient: updatedPatient,
+      };
+    }
+
+    // 2) No id -> try to find existing patient by patientId (if patientId provided)
+    if (patientId) {
+      const existingPatient = await this.findByPatientIdNumber(patientId);
+      if (existingPatient) {
+        // If exists, ensure org and then update (this lets caller upsert by patientId)
+        if (existingPatient.organization_id !== organizationId) {
+          throw new ForbiddenException(
+            'Patient belongs to a different organization',
+          );
+        }
+
+        // Update only the provided fields
+        const patientToUpdate = existingPatient;
+        if (firstName !== undefined) patientToUpdate.firstName = firstName;
+        if (lastName !== undefined) patientToUpdate.lastName = lastName;
+        if (dateOfBirth !== undefined)
+          patientToUpdate.dateOfBirth = dateOfBirth;
+        if (gender !== undefined) patientToUpdate.gender = gender;
+        if (preferredName !== undefined)
+          patientToUpdate.preferredName = preferredName;
+        if (careTeam !== undefined) patientToUpdate.careTeam = careTeam;
+        if (floor !== undefined) patientToUpdate.floor = floor;
+        if (roomNumber !== undefined) patientToUpdate.roomNumber = roomNumber;
+        if (notes !== undefined) patientToUpdate.notes = notes;
+
+        patientToUpdate.updated_by_id = loggedInUser.id;
+
+        const updatedPatient =
+          await this.patientRepository.save(patientToUpdate);
+
+        return {
+          success: true,
+          message: 'Patient updated successfully',
+          patient: updatedPatient,
+        };
+      }
+    }
+
+    if (patientId) {
+      const existingPatient = await this.findByPatientIdNumber(patientId);
+      if (existingPatient) {
+        throw new ConflictException(
+          `Patient with ID ${patientId} already exists`,
+        );
+      }
     }
 
     const newPatient = this.patientRepository.create({
@@ -171,71 +256,6 @@ export class PatientsService {
       success: true,
       message: 'Patient created successfully',
       patient: savedPatient,
-    };
-  }
-
-  async updatePatient(
-    id: string,
-    updatePatientDto: UpdatePatientDto,
-    organizationId: string,
-    loggedInUser: User,
-  ) {
-    const {
-      firstName,
-      lastName,
-      patientId,
-      dateOfBirth,
-      gender,
-      preferredName,
-      careTeam,
-      floor,
-      roomNumber,
-      notes,
-    } = updatePatientDto;
-
-    const patient = await this.patientRepository.findOne({
-      where: { id: patientId },
-    });
-
-    if (!patient) {
-      throw new NotFoundException(`Patient with ID ${patientId} not found`);
-    }
-
-    if (patient.organization_id !== organizationId) {
-      throw new ForbiddenException(
-        'You do not have permission to update this patient',
-      );
-    }
-
-    if (patientId && patient.patientId !== updatePatientDto?.patientId) {
-      const existingPatient = await this.findByPatientIdNumber(patientId);
-
-      if (existingPatient) {
-        throw new ConflictException(
-          `Patient with ID ${patientId} already exists`,
-        );
-      }
-    }
-
-    if (firstName) patient.firstName = firstName;
-    if (lastName) patient.lastName = lastName;
-    if (patientId) patient.patientId = patientId;
-    if (dateOfBirth) patient.dateOfBirth = dateOfBirth;
-    if (gender) patient.gender = gender;
-    if (preferredName) patient.preferredName = preferredName;
-    if (careTeam) patient.careTeam = careTeam;
-    if (floor) patient.floor = floor;
-    if (roomNumber) patient.roomNumber = roomNumber;
-    if (notes) patient.notes = notes;
-
-    patient.updated_by_id = loggedInUser.id;
-
-    const updatedPatient = await this.patientRepository.save(patient);
-
-    return {
-      success: true,
-      message: 'Patient updated successfully',
-      patient: updatedPatient,
     };
   }
 
