@@ -69,7 +69,6 @@ class EmergencyContactDto {
 
   @IsOptional()
   @IsString()
-  @IsPhoneNumber()
   alternate_phone?: string;
 
   @IsOptional()
