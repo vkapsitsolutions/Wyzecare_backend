@@ -17,6 +17,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PatientsModule } from './patients/patients.module';
 import { PatientConsentsModule } from './patient-consents/patient-consents.module';
+import { CallScriptsModule } from './call-scripts/call-scripts.module';
 
 @Module({
   imports: [
@@ -89,6 +90,8 @@ import { PatientConsentsModule } from './patient-consents/patient-consents.modul
     PatientsModule,
 
     PatientConsentsModule,
+
+    CallScriptsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
