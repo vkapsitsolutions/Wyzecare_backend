@@ -1,7 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsEmail,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -22,7 +21,6 @@ export class PatientContactDto {
   @IsPhoneNumber()
   alternate_phone?: string;
 
-  @IsEmail()
   @IsOptional()
   email?: string;
 
@@ -75,7 +73,6 @@ class EmergencyContactDto {
   alternate_phone?: string;
 
   @IsOptional()
-  @IsEmail()
   email?: string;
 
   @IsOptional()
