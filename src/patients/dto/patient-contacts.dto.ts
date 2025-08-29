@@ -18,7 +18,6 @@ export class PatientContactDto {
 
   @IsOptional()
   @IsString()
-  @IsPhoneNumber()
   alternate_phone?: string;
 
   @IsOptional()
