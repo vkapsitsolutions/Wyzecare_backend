@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,7 @@ import { CreateCallScriptDto } from './dto/create-call-script.dto';
 import { User } from 'src/users/entities/user.entity';
 import { UpdateCallScriptDto } from './dto/update-call-script.dto';
 import slugify from 'slugify';
+import { incrementVersion } from 'src/common/helpers/version-increment';
 // import { CreateScriptQuestionDto } from './dto/create-question.dto';
 // import { UpdateScriptQuestionDto } from './dto/update-question.dto';
 
@@ -48,6 +50,15 @@ export class CallScriptsService {
     if (await this.checkSlugExists(slug, organizationId)) {
       throw new ConflictException(
         'A call script with this slug already exists.',
+      );
+    }
+
+    const orders =
+      createCallScriptDto.questions &&
+      createCallScriptDto.questions.map((q) => q.question_order);
+    if (orders && new Set(orders).size !== orders.length) {
+      throw new BadRequestException(
+        'Duplicate question orders detected in update.',
       );
     }
 
@@ -135,39 +146,79 @@ export class CallScriptsService {
 
     Object.assign(callScript, {
       ...updateCallScriptDto,
+      questions: callScript.questions,
       slug: newSlug,
       updated_by_id: user.id,
+      version:
+        updateCallScriptDto.version ??
+        (callScript.version ? incrementVersion(callScript.version) : 'v1.0'),
     });
 
+    // --- QUESTIONS MERGE LOGIC ---
     if (updateCallScriptDto.questions) {
-      const existingQuestions = callScript.questions || [];
-      const updatedQuestions: ScriptQuestion[] = [];
-
-      for (const qDto of updateCallScriptDto.questions) {
-        let question = existingQuestions.find((q) => q.id === qDto.id);
-        if (question) {
-          Object.assign(question, qDto);
-        } else {
-          question = this.scriptQuestionRepository.create({
-            ...qDto,
-          });
-        }
-        updatedQuestions.push(question);
+      const existingQuestions = callScript.questions ?? [];
+      const existingById = new Map<string, ScriptQuestion>();
+      for (const q of existingQuestions) {
+        if (q.id) existingById.set(q.id, q);
       }
 
+      const updatedQuestions: ScriptQuestion[] = [];
+      const keepIds = new Set<string>();
+      const orders: number[] = [];
+
+      for (const qDto of updateCallScriptDto.questions) {
+        // If DTO has an id and it exists in DB -> update it
+        if (qDto.id && existingById.has(qDto.id)) {
+          const question = existingById.get(qDto.id)!;
+          Object.assign(question, qDto);
+          updatedQuestions.push(question);
+          keepIds.add(qDto.id);
+          if (typeof question.question_order === 'number')
+            orders.push(question.question_order);
+        } else {
+          // New question (no matching id) -> create entity and attach to parent
+          const newQuestion = this.scriptQuestionRepository.create({
+            ...qDto,
+            script: callScript, // ensure relation is set
+            script_id: callScript.id, // defensive: set FK explicitly if your entity uses it
+          });
+          updatedQuestions.push(newQuestion);
+          if (typeof newQuestion.question_order === 'number')
+            orders.push(newQuestion.question_order);
+        }
+      }
+
+      // Validate duplicate question_order BEFORE mutating DB
+      if (orders.length > 0) {
+        const uniqueOrders = new Set(orders);
+        if (uniqueOrders.size !== orders.length) {
+          throw new BadRequestException(
+            'Duplicate question orders detected in update.',
+          );
+        }
+      }
+
+      // Remove existing questions omitted from the DTO
       const questionsToRemove = existingQuestions.filter(
-        (q) =>
-          !(updateCallScriptDto.questions ?? []).some(
-            (qDto) => qDto.id === q.id,
-          ),
+        (q) => q.id && !keepIds.has(q.id),
       );
       if (questionsToRemove.length > 0) {
+        // remove explicitly omitted questions
         await this.scriptQuestionRepository.remove(questionsToRemove);
       }
 
-      callScript.questions = updatedQuestions;
+      // Save updated + new questions (saves both persisted and new entities)
+      // This is safer than relying on cascade behavior
+      await this.scriptQuestionRepository.save(updatedQuestions);
+
+      // Reload questions for the callScript to ensure consistency
+      callScript.questions = await this.scriptQuestionRepository.find({
+        where: { script: { id: callScript.id } },
+        order: { question_order: 'ASC' },
+      });
     }
 
+    // --- SAVE SCRIPT ---
     const updatedScript = await this.callScriptRepository.save(callScript);
 
     return {
@@ -187,64 +238,4 @@ export class CallScriptsService {
       deletedResult: deleted,
     };
   }
-
-  // Separate methods for questions if needed,
-
-  //   async createQuestion(
-  //     scriptId: string,
-  //     createQuestionDto: CreateScriptQuestionDto,
-  //     organizationId: string,
-  //   ): Promise<ScriptQuestion> {
-  //     const { callScript } = await this.findOne(scriptId, organizationId);
-  //     const question = this.scriptQuestionRepository.create({
-  //       ...createQuestionDto,
-  //       script: callScript,
-  //     });
-  //     return this.scriptQuestionRepository.save(question);
-  //   }
-
-  //   async findQuestions(
-  //     scriptId: string,
-  //     organizationId: string,
-  //   ): Promise<ScriptQuestion[]> {
-  //     await this.findOne(scriptId, organizationId); // Validate script exists
-  //     return this.scriptQuestionRepository.find({
-  //       where: { script_id: scriptId },
-  //       order: { question_order: 'ASC' },
-  //     });
-  //   }
-
-  //   async updateQuestion(
-  //     questionId: string,
-  //     updateQuestionDto: UpdateScriptQuestionDto,
-  //     organizationId: string,
-  //   ): Promise<ScriptQuestion> {
-  //     const question = await this.scriptQuestionRepository.findOne({
-  //       where: { id: questionId },
-  //       relations: ['script'],
-  //     });
-  //     if (!question || question.script.organization_id !== organizationId) {
-  //       throw new NotFoundException(
-  //         `ScriptQuestion with ID ${questionId} not found`,
-  //       );
-  //     }
-  //     Object.assign(question, updateQuestionDto);
-  //     return this.scriptQuestionRepository.save(question);
-  //   }
-
-  //   async removeQuestion(
-  //     questionId: string,
-  //     organizationId: string,
-  //   ): Promise<void> {
-  //     const question = await this.scriptQuestionRepository.findOne({
-  //       where: { id: questionId },
-  //       relations: ['script'],
-  //     });
-  //     if (!question || question.script.organization_id !== organizationId) {
-  //       throw new NotFoundException(
-  //         `ScriptQuestion with ID ${questionId} not found`,
-  //       );
-  //     }
-  //     await this.scriptQuestionRepository.remove(question);
-  //   }
 }
