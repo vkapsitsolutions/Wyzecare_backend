@@ -1,0 +1,19 @@
+export enum ScriptCategory {
+  WELLNESS_CHECK = 'WELLNESS_CHECK',
+  MEDICATION_REMINDER = 'MEDICATION_REMINDER',
+  SAFETY_CHECK = 'SAFETY_CHECK',
+  MOOD_ASSESSMENT = 'MOOD_ASSESSMENT',
+  EMERGENCY_FOLLOW_UP = 'EMERGENCY_FOLLOW_UP',
+}
+
+export enum ScriptStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+}
+
+export enum QuestionType {
+  YES_NO = 'YES_NO',
+  MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
+  SCALE = 'SCALE',
+  OPEN_ENDED = 'OPEN_ENDED',
+}
