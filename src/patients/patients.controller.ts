@@ -43,6 +43,7 @@ export class PatientsController {
     @CurrentUser() user: User,
     @Query() listPatientsDto: GetPatientsQuery,
   ) {
+    if (!user.organization_id) return;
     return this.patientsService.listAllPatients(
       user.organization_id,
       listPatientsDto,
@@ -66,6 +67,7 @@ export class PatientsController {
     @CurrentUser() user: User,
     @Body() createPatientDto: CreatePatientDto | UpdatePatientDto,
   ) {
+    if (!user.organization_id) return;
     return this.patientsService.upsertPatient(
       createPatientDto,
       user.organization_id,
@@ -81,6 +83,7 @@ export class PatientsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() patientContactData: PatientContactDto,
   ) {
+    if (!user.organization_id) return;
     return this.patientsService.updatePatientContactAndEmergency(
       id,
       user,
@@ -97,6 +100,7 @@ export class PatientsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() medicalInfoData: MedicalInfoDto,
   ) {
+    if (!user.organization_id) return;
     return this.patientsService.addOrUpdateMedicalInfo(
       id,
       user.organization_id,

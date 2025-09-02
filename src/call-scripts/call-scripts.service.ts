@@ -6,15 +6,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CallScript } from './entities/call-script.entity';
-import { FindOptionsWhere, Not, Repository } from 'typeorm';
+import { Brackets, FindOptionsWhere, Not, Repository } from 'typeorm';
 import { ScriptQuestion } from './entities/script-questions.entity';
 import { CreateCallScriptDto } from './dto/create-call-script.dto';
 import { User } from 'src/users/entities/user.entity';
 import { UpdateCallScriptDto } from './dto/update-call-script.dto';
 import slugify from 'slugify';
 import { incrementVersion } from 'src/common/helpers/version-increment';
-// import { CreateScriptQuestionDto } from './dto/create-question.dto';
-// import { UpdateScriptQuestionDto } from './dto/update-question.dto';
+import { ListCallScriptDto } from './dto/list-call-scripts.dto';
 
 @Injectable()
 export class CallScriptsService {
@@ -87,12 +86,31 @@ export class CallScriptsService {
     };
   }
 
-  async findAll(organizationId: string) {
-    const callScripts = await this.callScriptRepository.find({
-      where: { organization_id: organizationId },
-      relations: ['questions'],
-      order: { created_at: 'DESC' },
-    });
+  async findAll(organizationId: string, dto: ListCallScriptDto) {
+    const { keyword } = dto;
+
+    const qb = this.callScriptRepository
+      .createQueryBuilder('script')
+      .leftJoinAndSelect('script.questions', 'questions')
+      .where('script.organization_id = :orgId', { orgId: organizationId });
+
+    if (keyword && String(keyword).trim() !== '') {
+      const kw = `%${String(keyword).trim()}%`;
+      qb.andWhere(
+        new Brackets((qb2) => {
+          qb2
+            .where('script.title ILIKE :kw', { kw })
+            .orWhere('script.slug ILIKE :kw', { kw })
+            .orWhere('script.opening_message ILIKE :kw', { kw })
+            .orWhere('script.closing_message ILIKE :kw', { kw })
+            .orWhere('questions.question_text ILIKE :kw', { kw });
+        }),
+      );
+    }
+
+    qb.distinct(true).orderBy('script.created_at', 'DESC');
+
+    const callScripts = await qb.getMany();
 
     return {
       success: true,

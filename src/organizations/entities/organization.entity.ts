@@ -45,7 +45,7 @@ export class Organization {
     type: 'enum',
     enum: TimezoneEnum,
     name: 'timezone',
-    default: TimezoneEnum.UTC,
+    default: TimezoneEnum.AMERICA_NEW_YORK,
   })
   timezone: TimezoneEnum;
 

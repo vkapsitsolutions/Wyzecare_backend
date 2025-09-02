@@ -21,7 +21,7 @@ export class User {
   id: string;
 
   @Column({ name: 'organization_id', nullable: true })
-  organization_id: string;
+  organization_id?: string;
 
   @ManyToOne(() => Organization, { nullable: true })
   @JoinColumn({ name: 'organization_id' })

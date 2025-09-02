@@ -75,8 +75,6 @@ export class PatientsService {
     if (rawKeyword && rawKeyword.length > 0) {
       const tokens = rawKeyword.split(/\s+/).slice(0, 5); // limit tokens to 5 for safety
 
-      console.log('tokens :>> ', tokens);
-
       tokens.forEach((token, idx) => {
         const paramName = `kw${idx}`;
         const likeValue = `%${token}%`;
