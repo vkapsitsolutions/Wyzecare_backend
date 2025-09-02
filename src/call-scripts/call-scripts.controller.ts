@@ -33,6 +33,7 @@ export class CallScriptsController {
     @Body() createCallScriptDto: CreateCallScriptDto,
     @CurrentUser() loggedInUser: User,
   ) {
+    if (!loggedInUser.organization_id) return;
     return this.callScriptsService.create(
       createCallScriptDto,
       loggedInUser.organization_id,
@@ -47,6 +48,7 @@ export class CallScriptsController {
     @CurrentUser() loggedInUser: User,
     @Query() listCallScriptsDto: ListCallScriptDto,
   ) {
+    if (!loggedInUser.organization_id) return;
     return this.callScriptsService.findAll(
       loggedInUser.organization_id,
       listCallScriptsDto,
@@ -60,6 +62,7 @@ export class CallScriptsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() loggedInUser: User,
   ) {
+    if (!loggedInUser.organization_id) return;
     return this.callScriptsService.findOne(id, loggedInUser.organization_id);
   }
 
@@ -71,6 +74,7 @@ export class CallScriptsController {
     @Body() updateCallScriptDto: UpdateCallScriptDto,
     @CurrentUser() loggedInUser: User,
   ) {
+    if (!loggedInUser.organization_id) return;
     return this.callScriptsService.update(
       id,
       updateCallScriptDto,
@@ -86,6 +90,7 @@ export class CallScriptsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() loggedInUser: User,
   ) {
+    if (!loggedInUser.organization_id) return;
     return this.callScriptsService.remove(id, loggedInUser.organization_id);
   }
 }
