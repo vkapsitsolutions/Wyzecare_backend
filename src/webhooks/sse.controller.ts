@@ -1,4 +1,4 @@
-import { Controller, Sse } from '@nestjs/common';
+import { Controller, Param, Sse } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import type { CallWebhookPayload } from './types/webhooks-payload';
@@ -18,21 +18,22 @@ export class SseController {
    *
    * Browser client can "addEventListener('call_started', ...)" to receive it.
    */
-  @Sse('events')
-  events(): Observable<{ event: string; data: any }> {
+  @Sse('events/:callId')
+  events(
+    @Param('callId') callId: string,
+  ): Observable<{ event: string; data: any }> {
     return this.webhooksService.eventsStream.pipe(
       filter(
         (p: CallWebhookPayload) =>
-          p?.event === 'call_started' ||
-          p?.event === 'call_ended' ||
-          p?.event === 'call_analyzed',
+          p?.call?.call_id === callId &&
+          (p.event === 'call_started' ||
+            p.event === 'call_ended' ||
+            p.event === 'call_analyzed'),
       ),
-      map((payload: CallWebhookPayload) => {
-        return {
-          event: payload.event, // SSE event name
-          data: payload.call ?? payload, // the client gets the call object
-        };
-      }),
+      map((payload: CallWebhookPayload) => ({
+        event: payload.event,
+        data: payload,
+      })),
     );
   }
 }
