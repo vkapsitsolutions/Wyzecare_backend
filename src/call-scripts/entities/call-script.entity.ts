@@ -31,6 +31,9 @@ export class CallScript {
   @Column({ name: 'title', nullable: false })
   title: string;
 
+  @Column({ name: 'description', nullable: true })
+  description?: string;
+
   @Column({ name: 'slug', nullable: false })
   slug: string;
 

@@ -14,6 +14,9 @@ import { UpdateCallScriptDto } from './dto/update-call-script.dto';
 import slugify from 'slugify';
 import { incrementVersion } from 'src/common/helpers/version-increment';
 import { ListCallScriptDto } from './dto/list-call-scripts.dto';
+import { TestCallDto } from './dto/test-call.dto';
+import { InitiateCallPayload } from 'src/ai-calling/payloads/initiate-call.payload';
+import { AiCallingService } from 'src/ai-calling/ai-calling.service';
 
 @Injectable()
 export class CallScriptsService {
@@ -22,6 +25,8 @@ export class CallScriptsService {
     private readonly callScriptRepository: Repository<CallScript>,
     @InjectRepository(ScriptQuestion)
     private readonly scriptQuestionRepository: Repository<ScriptQuestion>,
+
+    private readonly aiCallingService: AiCallingService,
   ) {}
 
   async checkSlugExists(slug: string, orgId: string, excludeId?: string) {
@@ -254,6 +259,40 @@ export class CallScriptsService {
       success: true,
       message: 'Call script deleted',
       deletedResult: deleted,
+    };
+  }
+
+  async testCallScript(
+    id: string,
+    organizationId: string,
+    testCallDto: TestCallDto,
+    loggedInUser: User,
+  ) {
+    const { callScript } = await this.findOne(id, organizationId);
+
+    const { phoneNumber } = testCallDto;
+    const payload: InitiateCallPayload = {
+      patient_number: phoneNumber,
+      patient_name: loggedInUser.fullName,
+      preferred_name: loggedInUser.fullName,
+      title: callScript.title,
+      category: callScript.category,
+      prefer_to_talk: 'female',
+      status: callScript.status,
+      opening_message: callScript.opening_message,
+      closing_message: callScript.closing_message,
+      escalation_triggers: callScript.escalation_triggers
+        ? callScript.escalation_triggers
+        : [],
+      questions: callScript.questions ? callScript.questions : [],
+    };
+
+    const res = await this.aiCallingService.initiateCall(payload);
+
+    return {
+      success: true,
+      message: 'Call initiated successfully',
+      result: res,
     };
   }
 }
