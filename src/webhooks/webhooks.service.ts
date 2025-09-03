@@ -19,16 +19,16 @@ export class WebhooksService {
    * Emits the incoming payload to subscribers for real-time delivery.
    */
   handleWebhooks(payload: CallWebhookPayload) {
-    this.logger.debug(`Received webhook event: ${payload?.event}`);
+    this.logger.warn(`Received webhook event: ${payload?.event}`);
     // Optionally validate payload here (signature, schema, etc.)
 
     // Emit only if event is relevant (you can change / extend the list)
-    const interested = ['call_started', 'call_ended'];
+    const interested = ['call_started', 'call_ended', 'call_analyzed'];
     if (interested.includes(payload.event)) {
       this.events$.next(payload);
       this.logger.log(`Emitted SSE for event=${payload.event}`);
     } else {
-      this.logger.debug(`Ignored event: ${payload.event}`);
+      this.logger.warn(`Ignored event: ${payload.event}`);
     }
   }
 

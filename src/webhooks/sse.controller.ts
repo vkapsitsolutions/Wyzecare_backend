@@ -23,7 +23,9 @@ export class SseController {
     return this.webhooksService.eventsStream.pipe(
       filter(
         (p: CallWebhookPayload) =>
-          p?.event === 'call_started' || p?.event === 'call_ended',
+          p?.event === 'call_started' ||
+          p?.event === 'call_ended' ||
+          p?.event === 'call_analyzed',
       ),
       map((payload: CallWebhookPayload) => {
         return {
