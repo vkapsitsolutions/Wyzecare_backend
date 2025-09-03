@@ -21,6 +21,7 @@ import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
 import { UpdateCallScriptDto } from './dto/update-call-script.dto';
 import { ListCallScriptDto } from './dto/list-call-scripts.dto';
+import { TestCallDto } from './dto/test-call.dto';
 
 @Controller('call-scripts')
 export class CallScriptsController {
@@ -92,5 +93,22 @@ export class CallScriptsController {
   ) {
     if (!loggedInUser.organization_id) return;
     return this.callScriptsService.remove(id, loggedInUser.organization_id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard, ActiveSubscriptionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
+  @Post(':id/test-script')
+  testScriptCall(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() loggedInUser: User,
+    @Body() testCallDto: TestCallDto,
+  ) {
+    if (!loggedInUser.organization_id) return;
+    return this.callScriptsService.testCallScript(
+      id,
+      loggedInUser.organization_id,
+      testCallDto,
+      loggedInUser,
+    );
   }
 }

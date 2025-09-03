@@ -18,6 +18,8 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PatientsModule } from './patients/patients.module';
 import { PatientConsentsModule } from './patient-consents/patient-consents.module';
 import { CallScriptsModule } from './call-scripts/call-scripts.module';
+import { AiCallingModule } from './ai-calling/ai-calling.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -60,6 +62,8 @@ import { CallScriptsModule } from './call-scripts/call-scripts.module';
         AWS_SECRET_ACCESS_KEY: Joi.string().required(),
         AWS_BUCKET_NAME: Joi.string().required(),
         AWS_BUCKET_REGION: Joi.string().required(),
+        CALLING_SERVICE_URI: Joi.string().required(),
+        CALLING_SERVICE_TOKEN: Joi.string().required(),
       }),
     }),
 
@@ -92,6 +96,10 @@ import { CallScriptsModule } from './call-scripts/call-scripts.module';
     PatientConsentsModule,
 
     CallScriptsModule,
+
+    AiCallingModule,
+
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

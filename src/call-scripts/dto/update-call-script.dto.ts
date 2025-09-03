@@ -19,6 +19,10 @@ export class UpdateCallScriptDto {
   @IsOptional()
   category?: ScriptCategory;
 
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @IsEnum(ScriptStatus)
   @IsOptional()
   status?: ScriptStatus;

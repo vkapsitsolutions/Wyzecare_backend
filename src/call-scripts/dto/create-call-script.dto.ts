@@ -16,6 +16,10 @@ export class CreateCallScriptDto {
   @IsNotEmpty()
   title: string;
 
+  @IsString()
+  @IsOptional()
+  description: string;
+
   @IsEnum(ScriptCategory)
   category: ScriptCategory;
 
