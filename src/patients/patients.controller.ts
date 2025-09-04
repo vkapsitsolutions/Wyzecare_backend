@@ -63,8 +63,7 @@ export class PatientsController {
     return this.patientsService.findById(id);
   }
 
-  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PatientAccessGuard)
-  @PatientAccessDecorator('write')
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
   @Post()
   createPatientOrUpdatePatient(
     @CurrentUser() user: User,
