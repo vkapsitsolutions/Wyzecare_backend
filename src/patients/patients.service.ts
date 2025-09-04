@@ -17,6 +17,7 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { GetPatientsQuery } from './dto/get-patients-query.dto';
 import { MedicalInfoDto } from './dto/medical-info.dto';
 import { PatientMedicalInfo } from './entities/patient-medical-info.entity';
+import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 
 @Injectable()
 export class PatientsService {
@@ -57,6 +58,7 @@ export class PatientsService {
   async listAllPatients(
     organizationId: string,
     getPatientsQuery: GetPatientsQuery,
+    loggedInUser: User,
   ) {
     const { status, page, limit, keyword } = getPatientsQuery ?? {};
 
@@ -100,6 +102,24 @@ export class PatientsService {
           }),
         );
       });
+    }
+
+    // --- ROLE / ACCESS DECISION ---
+    // Robust role detection:
+    const roleSlug = loggedInUser?.role?.slug || null;
+
+    const isAdmin = roleSlug === RoleName.ADMINISTRATOR;
+
+    if (!isAdmin) {
+      // non-admins only see patients they have access to (via user_patient_access)
+      qb.andWhere(
+        `EXISTS (
+        SELECT 1 FROM user_patient_access upa
+        WHERE upa.patient_id = patient.id
+          AND upa.user_id = :userId
+      )`,
+        { userId: loggedInUser.id },
+      );
     }
 
     qb.orderBy('patient.created_at', 'DESC')

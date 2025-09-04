@@ -8,12 +8,15 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   Index,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { USER_STATUS } from '../enums/user-status.enum';
 import { LOGIN_PROVIDER } from '../enums/login.provider.enum';
 import { Role } from 'src/roles/entities/role.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { GENDER } from 'src/common/types/gender.enum';
+import { Patient } from 'src/patients/entities/patient.entity'; // Adjust path as needed
 
 @Entity()
 export class User {
@@ -98,6 +101,15 @@ export class User {
 
   @DeleteDateColumn({ type: 'timestamptz' })
   deleted_at: Date | null;
+
+  // New: Many-to-many relation for accessible patients
+  @ManyToMany(() => Patient, (patient) => patient.usersWithAccess)
+  @JoinTable({
+    name: 'user_patient_access',
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'patient_id', referencedColumnName: 'id' },
+  })
+  accessiblePatients: Patient[];
 
   get fullName(): string {
     return `${this.first_name} ${this.last_name}`;

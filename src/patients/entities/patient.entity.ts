@@ -12,6 +12,7 @@ import {
   DeleteDateColumn,
   OneToOne,
   OneToMany,
+  ManyToMany,
 } from 'typeorm';
 import { PatientContact } from './patient-contact.entity';
 import { PatientEmergencyContact } from './patient-emergency-contact.entity';
@@ -175,6 +176,9 @@ export class Patient {
   })
   @JoinColumn({ name: 'deleted_by_id' })
   deletedBy?: User;
+
+  @ManyToMany(() => User, (user) => user.accessiblePatients)
+  usersWithAccess: User[];
 
   // convenience getter
   get fullName(): string {

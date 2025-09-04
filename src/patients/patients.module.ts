@@ -6,15 +6,18 @@ import { Patient } from './entities/patient.entity';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { RolesModule } from 'src/roles/roles.module';
 import { PatientConsentsModule } from 'src/patient-consents/patient-consents.module';
+import { PatientAccessService } from './patient-access.service';
+import { User } from 'src/users/entities/user.entity';
+import { PatientAccessController } from './patient-access.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Patient]),
+    TypeOrmModule.forFeature([Patient, User]),
     SubscriptionsModule,
     RolesModule,
     PatientConsentsModule,
   ],
-  controllers: [PatientsController],
-  providers: [PatientsService],
+  controllers: [PatientsController, PatientAccessController],
+  providers: [PatientsService, PatientAccessService],
 })
 export class PatientsModule {}
