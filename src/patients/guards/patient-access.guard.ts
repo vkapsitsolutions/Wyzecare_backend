@@ -37,9 +37,7 @@ export class PatientAccessGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated or role missing');
     }
 
-    const patientId: string =
-      request.params.patientId ||
-      ((request.body as { id?: string }).id as string);
+    const patientId: string = request.params.patientId;
     if (!patientId) {
       throw new ForbiddenException(
         'Patient ID not provided in route parameters',
