@@ -5,6 +5,7 @@ import { In, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { AssignPatientsDto } from './dto/assign-patients.dto';
+import { UploadsService } from 'src/uploads/uploads.service';
 
 @Injectable()
 export class PatientAccessService {
@@ -13,6 +14,8 @@ export class PatientAccessService {
     private readonly patientRepository: Repository<Patient>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+
+    private readonly uploadsService: UploadsService,
   ) {}
 
   private async getUserWithAccessiblePatients(userId: string) {
@@ -40,6 +43,11 @@ export class PatientAccessService {
     const result = await Promise.all(
       users.map(async (user) => {
         const { count } = await this.getAccessCountForUser(user.id);
+        if (user.photo) {
+          const photo = await this.uploadsService.getFile(user.photo);
+
+          if (photo) user.photo = photo;
+        }
         return {
           user,
           count,
@@ -83,7 +91,8 @@ export class PatientAccessService {
     targetUserId: string,
     assignPatientsDto: AssignPatientsDto,
   ) {
-    const { patientIds } = assignPatientsDto;
+    const { patientIds = [] } = assignPatientsDto;
+
     const targetUser = await this.userRepository.findOne({
       where: { id: targetUserId },
       relations: { accessiblePatients: true, role: true },
@@ -94,20 +103,24 @@ export class PatientAccessService {
     }
 
     if (targetUser.role?.slug === RoleName.ADMINISTRATOR) {
-      // administrator already having full access, nothing changed
+      // administrator already has full access; nothing to change
       return {
         success: true,
         message: 'Patients assigned to user',
       };
     }
 
-    const patients = await this.patientRepository.find({
-      where: { id: In(patientIds) },
-    });
-    targetUser.accessiblePatients = [
-      ...(targetUser.accessiblePatients || []),
-      ...patients,
-    ];
+    // If no patientIds provided, clear all accessible patients
+    let patients: Patient[] = [];
+    if (Array.isArray(patientIds) && patientIds.length > 0) {
+      patients = await this.patientRepository.find({
+        where: { id: In(patientIds) },
+      });
+    }
+
+    // Replace the user's accessiblePatients with exactly the patients found.
+    // This will remove any old relations that are not in `patients`.
+    targetUser.accessiblePatients = patients;
     await this.userRepository.save(targetUser);
 
     return {
