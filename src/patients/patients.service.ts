@@ -18,12 +18,15 @@ import { GetPatientsQuery } from './dto/get-patients-query.dto';
 import { MedicalInfoDto } from './dto/medical-info.dto';
 import { PatientMedicalInfo } from './entities/patient-medical-info.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
+import { PatientAccessService } from './patient-access.service';
 
 @Injectable()
 export class PatientsService {
   constructor(
     @InjectRepository(Patient)
     private readonly patientRepository: Repository<Patient>,
+
+    private readonly patientAccessService: PatientAccessService,
   ) {}
 
   async findByPatientIdNumber(patientIdNumber: string) {
@@ -173,6 +176,15 @@ export class PatientsService {
         );
       }
 
+      const canEditPatient = await this.patientAccessService.canEditPatient(
+        loggedInUser.id,
+        patient,
+      );
+
+      if (!canEditPatient) {
+        throw new ForbiddenException('You cannot edit this patient');
+      }
+
       // If incoming patientId is different, ensure uniqueness
       if (patientId && patient.patientId !== patientId) {
         const existingPatient = await this.findByPatientIdNumber(patientId);
@@ -206,42 +218,12 @@ export class PatientsService {
       };
     }
 
-    // 2) No id -> try to find existing patient by patientId (if patientId provided)
-    if (patientId) {
-      const existingPatient = await this.findByPatientIdNumber(patientId);
-      if (existingPatient) {
-        // If exists, ensure org and then update (this lets caller upsert by patientId)
-        if (existingPatient.organization_id !== organizationId) {
-          throw new ForbiddenException(
-            'Patient belongs to a different organization',
-          );
-        }
-
-        // Update only the provided fields
-        const patientToUpdate = existingPatient;
-        if (firstName !== undefined) patientToUpdate.firstName = firstName;
-        if (lastName !== undefined) patientToUpdate.lastName = lastName;
-        if (dateOfBirth !== undefined)
-          patientToUpdate.dateOfBirth = dateOfBirth;
-        if (gender !== undefined) patientToUpdate.gender = gender;
-        if (preferredName !== undefined)
-          patientToUpdate.preferredName = preferredName;
-        if (careTeam !== undefined) patientToUpdate.careTeam = careTeam;
-        if (floor !== undefined) patientToUpdate.floor = floor;
-        if (roomNumber !== undefined) patientToUpdate.roomNumber = roomNumber;
-        if (notes !== undefined) patientToUpdate.notes = notes;
-
-        patientToUpdate.updated_by_id = loggedInUser.id;
-
-        const updatedPatient =
-          await this.patientRepository.save(patientToUpdate);
-
-        return {
-          success: true,
-          message: 'Patient updated successfully',
-          patient: updatedPatient,
-        };
-      }
+    // creation logic below
+    if (
+      loggedInUser.role &&
+      loggedInUser.role.slug !== RoleName.ADMINISTRATOR
+    ) {
+      throw new ForbiddenException('Only admins can create a new patient');
     }
 
     if (patientId) {

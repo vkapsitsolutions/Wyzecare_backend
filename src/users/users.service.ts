@@ -127,9 +127,11 @@ export class UsersService {
   }
 
   async getProfile(user: User) {
-    const photo = await this.uploadsService.getFile(user.photo);
+    if (user.photo) {
+      const photo = await this.uploadsService.getFile(user.photo);
 
-    if (photo) user.photo = photo;
+      if (photo) user.photo = photo;
+    }
 
     return {
       success: true,

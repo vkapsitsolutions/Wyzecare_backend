@@ -9,6 +9,7 @@ import { PatientConsentsModule } from 'src/patient-consents/patient-consents.mod
 import { PatientAccessService } from './patient-access.service';
 import { User } from 'src/users/entities/user.entity';
 import { PatientAccessController } from './patient-access.controller';
+import { UploadsModule } from 'src/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PatientAccessController } from './patient-access.controller';
     SubscriptionsModule,
     RolesModule,
     PatientConsentsModule,
+    UploadsModule,
   ],
   controllers: [PatientsController, PatientAccessController],
   providers: [PatientsService, PatientAccessService],
