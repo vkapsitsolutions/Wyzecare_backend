@@ -18,5 +18,6 @@ export interface InitiateCallPayload {
   opening_message?: string;
   closing_message?: string;
   escalation_triggers?: string[];
+  patient_medications?: string[];
   questions: ScriptQuestion[];
 }
