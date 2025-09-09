@@ -28,9 +28,6 @@ export class AiCallingService {
 
     const body = payload;
 
-    console.log('url :>> ', url);
-    console.log('this.callingServiceToken :>> ', this.callingServiceToken);
-
     const response = await firstValueFrom(
       this.httpService
         .post<{ data: unknown }>(url, body, {

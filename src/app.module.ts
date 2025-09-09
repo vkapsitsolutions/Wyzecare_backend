@@ -20,6 +20,8 @@ import { PatientConsentsModule } from './patient-consents/patient-consents.modul
 import { CallScriptsModule } from './call-scripts/call-scripts.module';
 import { AiCallingModule } from './ai-calling/ai-calling.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { CallSchedulesModule } from './call-schedules/call-schedules.module';
+import { CallsModule } from './calls/calls.module';
 
 @Module({
   imports: [
@@ -100,6 +102,10 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AiCallingModule,
 
     WebhooksModule,
+
+    CallSchedulesModule,
+
+    CallsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
