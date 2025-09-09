@@ -147,6 +147,10 @@ export class CallScriptsService {
   ) {
     const { callScript } = await this.findOne(id, organizationId);
 
+    if (!callScript.editable) {
+      throw new BadRequestException('This call script cannot be edited');
+    }
+
     let newSlug = callScript.slug;
     if (
       updateCallScriptDto.title &&

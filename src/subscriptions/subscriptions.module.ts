@@ -7,6 +7,7 @@ import { OrganizationSubscription } from './entities/organization-subscription.e
 import { OrganizationsModule } from 'src/organizations/organizations.module';
 import { UsersModule } from 'src/users/users.module';
 import { RolesModule } from 'src/roles/roles.module';
+import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { RolesModule } from 'src/roles/roles.module';
     OrganizationsModule,
     forwardRef(() => UsersModule),
     RolesModule,
+    CallScriptsModule,
   ],
   providers: [SubscriptionsService],
   controllers: [SubscriptionsController],

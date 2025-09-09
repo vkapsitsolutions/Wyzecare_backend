@@ -42,7 +42,7 @@ export class CallScript {
     enum: ScriptCategory,
     name: 'category',
     enumName: 'script_category_enum',
-    default: ScriptCategory.WELLNESS_CHECK,
+    default: ScriptCategory.CUSTOM,
   })
   category!: ScriptCategory;
 
@@ -92,6 +92,9 @@ export class CallScript {
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz' })
   deleted_at!: Date;
+
+  @Column({ type: 'boolean', default: true })
+  editable: boolean;
 
   // Relations
   @OneToMany(() => ScriptQuestion, (q) => q.script, {

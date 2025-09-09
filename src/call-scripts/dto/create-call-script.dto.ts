@@ -8,7 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ScriptCategory, ScriptStatus } from '../enums/call-scripts.enum';
+import { ScriptStatus } from '../enums/call-scripts.enum';
 import { CreateScriptQuestionDto } from './create-question.dto';
 
 export class CreateCallScriptDto {
@@ -20,8 +20,9 @@ export class CreateCallScriptDto {
   @IsOptional()
   description: string;
 
-  @IsEnum(ScriptCategory)
-  category: ScriptCategory;
+  // Removed for now
+  // @IsEnum(ScriptCategory)
+  // category: ScriptCategory;
 
   @IsEnum(ScriptStatus)
   @IsOptional()

@@ -10,13 +10,28 @@ import {
   TimezoneEnum,
 } from './enums/organization.enum';
 import { timezoneLabelMap } from 'src/common/helpers/time-zone-mapper';
+import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
 
 @Injectable()
 export class OrganizationsService {
   constructor(
     @InjectRepository(Organization)
     private readonly organizationsRepo: Repository<Organization>,
+
+    private readonly callScriptUtilsService: CallScriptUtilsService,
   ) {}
+
+  async assignDefaultScriptsToOrganizations() {
+    const organizations = await this.organizationsRepo.find();
+
+    for (const organization of organizations) {
+      await this.callScriptUtilsService.createDefaultScriptsForOrganization(
+        organization.id,
+      );
+    }
+
+    return { success: true };
+  }
 
   async createOrganization(user: User) {
     if (user.organization) {

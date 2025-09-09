@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Not, Repository } from 'typeorm';
+import { Brackets, Not, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserUtilsService } from './users-utils.service';
@@ -244,25 +244,34 @@ export class UsersService {
   }
 
   async listOrganizationUsers(organizationId: string, query: ListOrgUsersDto) {
-    const { role, status } = query;
+    const { role, status, keyword } = query;
 
-    const where: FindOptionsWhere<User> = {
-      organization: { id: organizationId },
-    };
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('user.organization_id = :orgId', { orgId: organizationId });
 
     if (role) {
-      where.role = { slug: role };
+      qb.andWhere('role.slug = :role', { role });
     }
 
     if (status) {
-      where.status = status;
+      qb.andWhere('user.status = :status', { status });
     }
 
-    const users = await this.userRepository.find({
-      where,
-      relations: { role: true },
-      order: { created_at: 'DESC' },
-    });
+    if (keyword && keyword.trim() !== '') {
+      const kw = `%${keyword.trim()}%`;
+      qb.andWhere(
+        new Brackets((qb2) => {
+          qb2
+            .where('user.first_name ILIKE :kw', { kw })
+            .orWhere('user.last_name ILIKE :kw', { kw })
+            .orWhere('user.email ILIKE :kw', { kw });
+        }),
+      );
+    }
+
+    const users = await qb.orderBy('user.created_at', 'DESC').getMany();
 
     for (const user of users) {
       if (user.photo) {

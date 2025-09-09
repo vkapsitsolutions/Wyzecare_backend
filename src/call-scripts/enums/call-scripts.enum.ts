@@ -4,6 +4,7 @@ export enum ScriptCategory {
   SAFETY_CHECK = 'SAFETY_CHECK',
   MOOD_ASSESSMENT = 'MOOD_ASSESSMENT',
   EMERGENCY_FOLLOW_UP = 'EMERGENCY_FOLLOW_UP',
+  CUSTOM = 'CUSTOM',
 }
 
 export enum ScriptStatus {
