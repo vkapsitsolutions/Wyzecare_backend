@@ -20,6 +20,8 @@ export class CreateCallScriptDto {
   @IsOptional()
   description: string;
 
+  // Removed for now
+  @IsOptional() // optional for now not accepted in logic
   @IsEnum(ScriptCategory)
   category: ScriptCategory;
 

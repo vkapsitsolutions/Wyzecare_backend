@@ -15,8 +15,9 @@ export class UpdateCallScriptDto {
   @IsOptional()
   title: string;
 
+  // removed for now
+  @IsOptional() // optional for now not accepted in logic
   @IsEnum(ScriptCategory)
-  @IsOptional()
   category?: ScriptCategory;
 
   @IsOptional()

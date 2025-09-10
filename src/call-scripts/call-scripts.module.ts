@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { CallScriptsService } from './call-scripts.service';
 import { CallScriptsController } from './call-scripts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -7,15 +7,17 @@ import { ScriptQuestion } from './entities/script-questions.entity';
 import { RolesModule } from 'src/roles/roles.module';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { AiCallingModule } from 'src/ai-calling/ai-calling.module';
+import { CallScriptUtilsService } from './call-scripts-utils.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([CallScript, ScriptQuestion]),
     RolesModule,
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
     AiCallingModule,
   ],
   controllers: [CallScriptsController],
-  providers: [CallScriptsService],
+  providers: [CallScriptsService, CallScriptUtilsService],
+  exports: [CallScriptUtilsService],
 })
 export class CallScriptsModule {}

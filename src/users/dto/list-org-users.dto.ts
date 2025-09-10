@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { USER_STATUS } from '../enums/user-status.enum';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 
@@ -10,4 +10,8 @@ export class ListOrgUsersDto {
   @IsOptional()
   @IsEnum(RoleName)
   role: RoleName;
+
+  @IsOptional()
+  @IsString()
+  keyword: string;
 }

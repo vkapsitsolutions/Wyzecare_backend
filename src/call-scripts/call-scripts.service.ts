@@ -17,6 +17,7 @@ import { ListCallScriptDto } from './dto/list-call-scripts.dto';
 import { TestCallDto } from './dto/test-call.dto';
 import { InitiateCallPayload } from 'src/ai-calling/payloads/initiate-call.payload';
 import { AiCallingService } from 'src/ai-calling/ai-calling.service';
+import { ScriptCategory } from './enums/call-scripts.enum';
 
 @Injectable()
 export class CallScriptsService {
@@ -69,6 +70,7 @@ export class CallScriptsService {
     const callScript = this.callScriptRepository.create({
       ...createCallScriptDto,
       slug,
+      category: ScriptCategory.CUSTOM, // forcefully push custom category in create
       organization_id: organizationId,
       created_by_id: user.id,
       updated_by_id: user.id,
@@ -147,6 +149,10 @@ export class CallScriptsService {
   ) {
     const { callScript } = await this.findOne(id, organizationId);
 
+    if (!callScript.editable) {
+      throw new BadRequestException('This call script cannot be edited');
+    }
+
     let newSlug = callScript.slug;
     if (
       updateCallScriptDto.title &&
@@ -175,6 +181,7 @@ export class CallScriptsService {
       version:
         updateCallScriptDto.version ??
         (callScript.version ? incrementVersion(callScript.version) : 'v1.0'),
+      category: ScriptCategory.CUSTOM, // force custom category in edit
     });
 
     // --- QUESTIONS MERGE LOGIC ---

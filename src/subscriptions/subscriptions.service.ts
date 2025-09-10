@@ -17,6 +17,7 @@ import { User } from 'src/users/entities/user.entity';
 import { OrganizationsService } from 'src/organizations/organizations.service';
 import { UserUtilsService } from 'src/users/users-utils.service';
 import { RolesService } from 'src/roles/roles.service';
+import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
 
 @Injectable()
 export class SubscriptionsService {
@@ -31,6 +32,7 @@ export class SubscriptionsService {
     private readonly organizationsService: OrganizationsService,
     private readonly userUtilsService: UserUtilsService,
     private readonly rolesService: RolesService,
+    private readonly callScriptUtilsService: CallScriptUtilsService,
   ) {}
 
   async findAll() {
@@ -73,6 +75,10 @@ export class SubscriptionsService {
 
     const organization =
       await this.organizationsService.createOrganization(loggedInUser);
+
+    await this.callScriptUtilsService.createDefaultScriptsForOrganization(
+      organization.id,
+    );
 
     const existingSubscription = await this.orgSubscriptionsRepo.findOne({
       where: {

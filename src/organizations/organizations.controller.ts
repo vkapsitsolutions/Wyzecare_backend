@@ -4,6 +4,7 @@ import {
   Get,
   NotFoundException,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -61,5 +62,11 @@ export class OrganizationsController {
   @Get('date-formats')
   getDateFormats() {
     return this.organizationsService.getDateFormats();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('temp/assign-scripts')
+  assignScripts() {
+    return this.organizationsService.assignDefaultScriptsToOrganizations();
   }
 }
