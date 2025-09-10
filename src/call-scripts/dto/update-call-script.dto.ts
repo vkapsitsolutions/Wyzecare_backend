@@ -6,7 +6,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { ScriptStatus } from '../enums/call-scripts.enum';
+import { ScriptCategory, ScriptStatus } from '../enums/call-scripts.enum';
 import { Type } from 'class-transformer';
 import { UpdateScriptQuestionDto } from './update-question.dto';
 
@@ -16,9 +16,9 @@ export class UpdateCallScriptDto {
   title: string;
 
   // removed for now
-  // @IsEnum(ScriptCategory)
-  // @IsOptional()
-  // category?: ScriptCategory;
+  @IsOptional() // optional for now not accepted in logic
+  @IsEnum(ScriptCategory)
+  category?: ScriptCategory;
 
   @IsOptional()
   @IsString()
