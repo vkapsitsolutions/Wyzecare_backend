@@ -359,7 +359,17 @@ export class CallSchedulesService {
   }
 
   async remove(organizationId: string, id: string, loggedInUser: User) {
-    await this.findOneInternal(organizationId, id, loggedInUser);
+    const callSchedule = await this.findOneInternal(
+      organizationId,
+      id,
+      loggedInUser,
+    );
+
+    callSchedule.deleted_by = loggedInUser;
+
+    await this.callsService.deletePendingBySchedule(callSchedule.id);
+
+    await this.callScheduleRepository.save(callSchedule);
 
     await this.callScheduleRepository.softDelete({ id });
 

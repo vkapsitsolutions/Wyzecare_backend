@@ -42,7 +42,8 @@ export class CallSchedulesController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
   @Get()
   list(@CurrentUser() user: User, @Query() query: GetCallSchedulesQuery) {
     if (!user.organization_id)
@@ -50,7 +51,8 @@ export class CallSchedulesController {
     return this.callSchedulesService.listAll(user.organization_id, query, user);
   }
 
-  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
   @Get(':id')
   findOne(@CurrentUser() user: User, @Param('id') id: string) {
     if (!user.organization_id)
@@ -58,7 +60,8 @@ export class CallSchedulesController {
     return this.callSchedulesService.findOne(user.organization_id, id, user);
   }
 
-  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
   @Patch(':id')
   update(
     @CurrentUser() user: User,
@@ -75,7 +78,8 @@ export class CallSchedulesController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
   @Delete(':id')
   remove(@CurrentUser() user: User, @Param('id') id: string) {
     if (!user.organization_id)
