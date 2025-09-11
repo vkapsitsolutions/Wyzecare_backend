@@ -78,7 +78,10 @@ export class PatientAccessService {
     };
   }
 
-  async canEditPatient(userId: string, patient: Patient): Promise<boolean> {
+  async canAccessAndEditPatient(
+    userId: string,
+    patient: Patient,
+  ): Promise<boolean> {
     const user = await this.getUserWithAccessiblePatients(userId);
     const hasAccess =
       user.role?.slug === RoleName.ADMINISTRATOR ||

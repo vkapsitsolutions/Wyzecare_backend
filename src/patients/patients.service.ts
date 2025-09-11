@@ -176,10 +176,11 @@ export class PatientsService {
         );
       }
 
-      const canEditPatient = await this.patientAccessService.canEditPatient(
-        loggedInUser.id,
-        patient,
-      );
+      const canEditPatient =
+        await this.patientAccessService.canAccessAndEditPatient(
+          loggedInUser.id,
+          patient,
+        );
 
       if (!canEditPatient) {
         throw new ForbiddenException('You cannot edit this patient');
@@ -513,5 +514,30 @@ export class PatientsService {
       if (v !== undefined) out[k as keyof T] = v as T[keyof T];
     });
     return out;
+  }
+
+  async checkPatientExists(id: string, organizationId: string) {
+    const exists = await this.patientRepository.exists({
+      where: { id, organization_id: organizationId },
+    });
+
+    return exists;
+  }
+
+  async checkPatientNumberExists(
+    id: string,
+    organizationId: string,
+  ): Promise<boolean> {
+    const patient = await this.patientRepository.findOne({
+      where: {
+        id,
+
+        organization_id: organizationId,
+      },
+      relations: { contact: true },
+    });
+
+    const phone = patient?.contact?.primary_phone?.toString()?.trim();
+    return !!phone;
   }
 }

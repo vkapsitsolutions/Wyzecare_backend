@@ -21,5 +21,6 @@ import { UploadsModule } from 'src/uploads/uploads.module';
   ],
   controllers: [PatientsController, PatientAccessController],
   providers: [PatientsService, PatientAccessService],
+  exports: [PatientsService, PatientAccessService],
 })
 export class PatientsModule {}
