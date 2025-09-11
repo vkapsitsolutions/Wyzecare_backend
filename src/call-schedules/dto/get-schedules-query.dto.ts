@@ -1,0 +1,13 @@
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { PaginationQueryDto } from 'src/common/dto/pagnination-query.dto';
+import { ScheduleStatus } from '../enums/call-schedule.enum';
+
+export class GetCallSchedulesQuery extends PaginationQueryDto {
+  @IsOptional()
+  @IsEnum(ScheduleStatus)
+  status?: ScheduleStatus;
+
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+}

@@ -74,4 +74,12 @@ export class CallScriptUtilsService {
       skipped,
     };
   }
+
+  async checkScriptExists(id: string, organizationId: string) {
+    const exists = await this.callScriptRepository.exists({
+      where: { id, organization_id: organizationId },
+    });
+
+    return exists;
+  }
 }
