@@ -121,7 +121,7 @@ export class CallSchedulesService {
 
     if (scheduleStatus === ScheduleStatus.ACTIVE) {
       // create upcoming call
-      await this.callsService.createCallWithSchedule(schedule);
+      await this.callsService.createCallRunFromSchedule(schedule);
     }
 
     return {
@@ -348,7 +348,7 @@ export class CallSchedulesService {
       schedule.status === ScheduleStatus.ACTIVE &&
       schedule.next_scheduled_at
     ) {
-      await this.callsService.createCallWithSchedule(schedule);
+      await this.callsService.createCallRunFromSchedule(schedule);
     }
 
     return {

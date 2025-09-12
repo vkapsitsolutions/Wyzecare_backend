@@ -13,11 +13,25 @@ import {
 } from 'typeorm';
 import { CallStatus } from '../enums/calls.enum';
 import { Organization } from 'src/organizations/entities/organization.entity';
+import { CallRun } from './call-runs.entity';
 
 @Entity({ name: 'calls' })
 export class Call {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column({
+    nullable: true,
+    comment: 'External id provided by calling service used',
+  })
+  external_id?: string;
+
+  @Column('uuid', { name: 'call_run_id', nullable: false })
+  call_run_id: string;
+
+  @ManyToOne(() => CallRun, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'call_run_id' })
+  call_run: CallRun;
 
   @Column('uuid', { name: 'organization_id', nullable: false })
   organization_id!: string;
@@ -28,12 +42,6 @@ export class Call {
   })
   @JoinColumn({ name: 'organization_id' })
   organization?: Organization;
-
-  @Column({
-    nullable: true,
-    comment: 'External id provided by calling service used',
-  })
-  external_id?: string;
 
   @Column('uuid', { name: 'schedule_id', nullable: true })
   schedule_id?: string;
@@ -69,12 +77,6 @@ export class Call {
   @Column({ name: 'attempt_number', type: 'int', default: 0 })
   attempt_number!: number;
 
-  @Column({ name: 'allowed_attempts', type: 'int', nullable: true })
-  allowed_attempts?: number;
-
-  @Column({ name: 'scheduled_for', type: 'timestamptz', nullable: false })
-  scheduled_for!: Date;
-
   @Column({ name: 'started_at', type: 'timestamptz', nullable: true })
   started_at?: Date;
 
@@ -89,6 +91,9 @@ export class Call {
 
   @Column({ name: 'meta', type: 'jsonb', nullable: true })
   meta?: Record<string, unknown>;
+
+  @Column({ name: 'webhook_response', type: 'jsonb', nullable: true })
+  webhook_response?: Record<any, any>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;
