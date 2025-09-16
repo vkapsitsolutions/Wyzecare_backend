@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { catchError, firstValueFrom } from 'rxjs';
 import { InitiateCallPayload } from './payloads/initiate-call.payload';
+import { InitiateCallResponse } from './payloads/initiate-call.reponse';
 
 @Injectable()
 export class AiCallingService {
@@ -23,14 +24,19 @@ export class AiCallingService {
     );
   }
 
-  async initiateCall(payload: InitiateCallPayload) {
+  /**
+   * Initiates a call and returns the typed provider response.
+   * Throws BadRequestException on transport or unexpected response.
+   */
+  async initiateCall(
+    payload: InitiateCallPayload,
+  ): Promise<InitiateCallResponse> {
     const url = `${this.callingServiceUrl}/create_phone_call`;
-
-    const body = payload;
 
     const response = await firstValueFrom(
       this.httpService
-        .post<{ data: unknown }>(url, body, {
+        // tell HttpService what the body shape will be
+        .post<InitiateCallResponse>(url, payload, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${this.callingServiceToken}`,
@@ -38,14 +44,24 @@ export class AiCallingService {
         })
         .pipe(
           catchError((error) => {
-            this.logger.error(error);
+            this.logger.error('Calling service transport error', error);
             throw new BadRequestException(
               'Could not initiate the call, please try again',
             );
           }),
         ),
     );
-    const data = response.data as unknown;
+
+    // response.data is typed as InitiateCallResponse
+    const data = response.data;
+
+    // basic validation to be safe
+    if (!data || typeof data.call_id !== 'string' || !data.call_id) {
+      this.logger.error('Unexpected response from calling service', data);
+      throw new BadRequestException(
+        'Calling service returned an unexpected response',
+      );
+    }
 
     return data;
   }

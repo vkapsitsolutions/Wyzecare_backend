@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { CallsService } from './calls.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
@@ -23,12 +17,12 @@ export class CallsController {
   @RequirePermissions(Permission.EDIT_PATIENTS)
   @Get('upcoming')
   list(@CurrentUser() user: User, @Query() getCallsQuery: GetCallsQuery) {
-    if (!user.organization_id)
-      throw new BadRequestException('User does not belong to any organization');
-    return this.callsService.listTodaysCalls(
-      user.organization_id,
-      getCallsQuery,
-      user,
-    );
+    // if (!user.organization_id)
+    //   throw new BadRequestException('User does not belong to any organization');
+    // return this.callsService.listTodaysCalls(
+    //   user.organization_id,
+    //   getCallsQuery,
+    //   user,
+    // );
   }
 }

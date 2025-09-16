@@ -8,6 +8,7 @@ import {
   JoinColumn,
   DeleteDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { CallScript } from 'src/call-scripts/entities/call-script.entity';
@@ -19,6 +20,7 @@ import {
 } from '../enums/call-schedule.enum';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { TimezoneEnum } from 'src/organizations/enums/organization.enum';
+import { CallRun } from 'src/calls/entities/call-runs.entity';
 
 @Entity({ name: 'call_schedules' })
 export class CallSchedule {
@@ -124,6 +126,9 @@ export class CallSchedule {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'deleted_by_id' })
   deleted_by?: User;
+
+  @OneToMany(() => CallRun, (callRun) => callRun.schedule)
+  callRuns: CallRun[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;

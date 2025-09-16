@@ -185,7 +185,9 @@ export class Patient {
     return `${this.firstName} ${this.lastName}`;
   }
 
-  @OneToOne(() => PatientContact, (patientContact) => patientContact.patient)
+  @OneToOne(() => PatientContact, (patientContact) => patientContact.patient, {
+    eager: true,
+  })
   contact: PatientContact;
 
   @OneToMany(

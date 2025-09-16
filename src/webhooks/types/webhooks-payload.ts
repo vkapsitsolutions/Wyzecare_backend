@@ -8,7 +8,7 @@ export type CallType = 'phone_call';
 export type CallDirection = 'inbound' | 'outbound';
 
 /** Common call status values (extended with string for forward-compat) */
-export type CallStatus =
+export type WebhookCallStatus =
   | 'registered'
   | 'not_connected'
   | 'ongoing'
@@ -52,12 +52,13 @@ export interface CallPayload {
   direction: CallDirection;
   call_id: string;
   agent_id?: string; // optional in some flows
-  call_status: CallStatus;
+  call_status: WebhookCallStatus;
   metadata?: Record<string, any>;
   /** dynamic variables populated for LLM retells, e.g. { customer_name: "John Doe" } */
   retell_llm_dynamic_variables?: Record<string, string>;
   start_timestamp?: number;
   end_timestamp?: number;
+  duration_ms?: number;
   disconnection_reason?: string;
   transcript?: string;
   /** parsed transcript (array of segments). Use TranscriptSegment[] when present. */
@@ -72,6 +73,7 @@ export interface CallPayload {
   /** the system may send this when the recording is available */
   recording_url?: string | null;
   opt_out_sensitive_data_storage?: boolean;
+  call_analysis?: Record<string, string>;
   [key: string]: any; // allow future fields
 }
 

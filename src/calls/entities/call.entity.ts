@@ -69,7 +69,7 @@ export class Call {
     type: 'enum',
     enum: CallStatus,
     name: 'status',
-    default: CallStatus.SCHEDULED,
+    default: CallStatus.REGISTERED,
   })
   @Index()
   status!: CallStatus;

@@ -16,7 +16,7 @@ import { PatientsService } from 'src/patients/patients.service';
 import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
 import * as moment from 'moment-timezone';
 import { CallsService } from 'src/calls/calls.service';
-import { ScheduleStatus } from './enums/call-schedule.enum';
+import { CallFrequency, ScheduleStatus } from './enums/call-schedule.enum';
 import { PatientAccessService } from 'src/patients/patient-access.service';
 
 @Injectable()
@@ -221,6 +221,7 @@ export class CallSchedulesService {
     const qb = this.callScheduleRepository
       .createQueryBuilder('schedule')
       .leftJoinAndSelect('schedule.patient', 'patient')
+      .leftJoinAndSelect('patient.contact', 'contact')
       .leftJoinAndSelect('schedule.script', 'script')
       .where('schedule.id = :id', { id })
       .andWhere('schedule.organization_id = :orgId', { orgId: organizationId });
@@ -341,7 +342,7 @@ export class CallSchedulesService {
     await this.callScheduleRepository.save(schedule);
 
     // Delete existing pending calls (if any) - always, for consistency on updates
-    await this.callsService.deletePendingBySchedule(schedule.id);
+    await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
 
     // Create a new scheduled call only if status is ACTIVE and next_scheduled_at is set
     if (
@@ -367,7 +368,7 @@ export class CallSchedulesService {
 
     callSchedule.deleted_by = loggedInUser;
 
-    await this.callsService.deletePendingBySchedule(callSchedule.id);
+    await this.callsService.deleteEmptyCallRunsBySchedule(callSchedule);
 
     await this.callScheduleRepository.save(callSchedule);
 
@@ -414,8 +415,6 @@ export class CallSchedulesService {
   }
 
   private calculateNextScheduledAt(schedule: CallSchedule): Date | null {
-    // No fallback needed now, as timezone and start are required
-
     const now = moment.tz(schedule.timezone);
     const [hour, minute] = schedule.time_window_start.split(':').map(Number);
     const candidate = now
@@ -426,13 +425,28 @@ export class CallSchedulesService {
       .millisecond(0);
 
     if (candidate.isSameOrBefore(now)) {
-      candidate.add(1, 'day');
+      switch (schedule.frequency) {
+        case CallFrequency.DAILY:
+          candidate.add(1, 'day');
+          break;
+        case CallFrequency.WEEKLY:
+          candidate.add(1, 'week');
+          break;
+        case CallFrequency.BI_WEEKLY:
+          candidate.add(2, 'weeks');
+          break;
+        case CallFrequency.MONTHLY:
+          candidate.add(1, 'month');
+          break;
+      }
     }
 
-    // preferred days logic, if needed later
-
-    // const preferredDays = schedule.preferred_days || [0, 1, 2, 3, 4, 5, 6];
-    // while (!preferredDays.includes(candidate.day())) { candidate.add(1, 'day'); }
+    // preferred days logic removed as not needed now
+    // if (schedule.preferred_days?.length) {
+    //   while (!schedule.preferred_days.includes(candidate.day())) {
+    //     candidate.add(1, 'day');
+    //   }
+    // }
 
     return candidate.toDate();
   }

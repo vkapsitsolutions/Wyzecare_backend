@@ -13,7 +13,7 @@ import { Organization } from 'src/organizations/entities/organization.entity';
 import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { CallScript } from 'src/call-scripts/entities/call-script.entity';
-import { CallStatus } from '../enums/calls.enum';
+import { CallRunStatus } from '../enums/calls.enum';
 import { Call } from './call.entity';
 
 @Entity({ name: 'call_runs' })
@@ -54,12 +54,12 @@ export class CallRun {
 
   @Column({
     type: 'enum',
-    enum: CallStatus,
+    enum: CallRunStatus,
     name: 'status',
-    default: CallStatus.SCHEDULED,
+    default: CallRunStatus.SCHEDULED,
   })
   @Index()
-  status!: CallStatus;
+  status!: CallRunStatus;
 
   @Column({ name: 'attempts_count', type: 'int', default: 0 })
   attempts_count!: number;

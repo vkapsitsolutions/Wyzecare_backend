@@ -16,10 +16,10 @@ export class WebhooksController {
 
   @Post('call-event')
   @HttpCode(HttpStatus.OK)
-  receiveWebhook(@Body() payload: CallWebhookPayload) {
+  async receiveWebhook(@Body() payload: CallWebhookPayload) {
     this.logger.debug('Webhook POST /webhooks');
     // Forward payload to service which will publish SSEs for interested events
-    this.webhooksService.handleWebhooks(payload);
+    await this.webhooksService.handleWebhooks(payload);
     // Respond quickly to the webhook sender
     return { ok: true };
   }
