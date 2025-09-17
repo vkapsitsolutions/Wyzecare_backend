@@ -8,6 +8,7 @@ import { CallRun } from './entities/call-runs.entity';
 import { ScheduleStatus } from 'src/call-schedules/enums/call-schedule.enum';
 import { CallUtilsService } from './call-utils.servcie';
 import { CallWebhookPayload } from 'src/webhooks/types/webhooks-payload';
+import { GetPatientCallHistoryDto } from './dto/get-patient-call-history.dto';
 
 @Injectable()
 export class CallsService {
@@ -164,7 +165,7 @@ export class CallsService {
         break;
 
       case 'call_ended':
-        this.handleCallEnded(call, payload);
+        await this.handleCallEnded(call, payload);
         break;
 
       case 'call_analyzed':
@@ -197,8 +198,22 @@ export class CallsService {
   }
 
   // call ended handling
-  private handleCallEnded(call: Call, webhookPayload: CallWebhookPayload) {
+  private async handleCallEnded(
+    call: Call,
+    webhookPayload: CallWebhookPayload,
+  ) {
     const { call: callData } = webhookPayload;
+
+    call.started_at = callData.start_timestamp
+      ? new Date(callData.start_timestamp)
+      : new Date();
+
+    call.ended_at = callData.end_timestamp
+      ? new Date(callData.end_timestamp)
+      : new Date();
+
+    await this.callRepository.save(call);
+
     this.logger.log(`Call ended: ${call.id}, Status: ${callData.call_status}`);
   }
 
@@ -286,6 +301,7 @@ export class CallsService {
     // Determine call run status based on call result
     if (call.status === CallStatus.ENDED) {
       // Call completed successfully
+      callRun.total_duration_seconds = call.duration_seconds;
       await this.completeCallRun(callRun);
     } else if (call.status === CallStatus.NOT_CONNECTED) {
       // Handle different types of non-connection
@@ -329,5 +345,61 @@ export class CallsService {
     }
 
     await this.callRunRepository.save(callRun);
+  }
+
+  async getCallHistoryForPatient(
+    patientId: string,
+    getPatientCallHistoryDto: GetPatientCallHistoryDto,
+  ) {
+    const { limit, page } = getPatientCallHistoryDto;
+
+    const total = await this.callRunRepository.countBy({
+      patient_id: patientId,
+    });
+
+    const callRuns = await this.callRunRepository.find({
+      where: { patient_id: patientId },
+      relations: ['script', 'calls'],
+      order: { scheduled_for: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const data = callRuns.map((run) => ({
+      id: run.id,
+      script: run.script
+        ? {
+            id: run.script.id,
+            title: run.script.title,
+            category: run.script.category,
+          }
+        : null,
+      scheduled_for: run.scheduled_for,
+      status: run.status,
+      attempts_count: run.attempts_count,
+      total_duration_seconds: run.total_duration_seconds,
+      calls: run.calls
+        .map((call) => ({
+          status: call.status,
+          attempt_number: call.attempt_number,
+          started_at: call.started_at,
+          ended_at: call.ended_at,
+          duration_seconds: call.duration_seconds,
+          failure_reason: call.failure_reason,
+        }))
+        .sort((a, b) => a.attempt_number - b.attempt_number),
+    }));
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      success: true,
+      message: 'call history fetched',
+      total,
+      page: page,
+      limit: limit,
+      totalPages,
+      data,
+    };
   }
 }

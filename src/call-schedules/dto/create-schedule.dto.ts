@@ -8,6 +8,7 @@ import {
   IsNotEmpty,
   Matches,
   IsPositive,
+  Max,
 } from 'class-validator';
 import {
   AgentGender,
@@ -33,12 +34,14 @@ export class CreateCallScheduleDto {
 
   @IsInt()
   @IsNotEmpty()
+  @Max(5)
   @IsPositive()
   max_attempts: number;
 
   @IsNumber()
   @IsInt()
   @IsPositive()
+  @Max(10)
   @IsOptional()
   retry_interval_minutes: number;
 

@@ -64,13 +64,21 @@ export class CallSchedulerService {
    * Process call runs that failed and need to be retried
    */
   private async processRetryCallRuns() {
-    const failedCallRuns = await this.callRunRepository
+    const failedCallRunsQuery = this.callRunRepository
       .createQueryBuilder('run')
       .leftJoinAndSelect('run.patient', 'patient')
       .leftJoinAndSelect('patient.contact', 'contact')
       .leftJoinAndSelect('run.script', 'script')
       .leftJoinAndSelect('run.schedule', 'schedule')
-      .leftJoin('run.calls', 'call')
+      // correlated subquery for max_ended_at, avoids GROUP BY issues
+      .addSelect(
+        (subQ) =>
+          subQ
+            .select('MAX(COALESCE(c2.ended_at, c2.started_at, c2.created_at))')
+            .from('calls', 'c2')
+            .where('c2.call_run_id = run.id'),
+        'max_ended_at',
+      )
       .where('run.status IN (:...statuses)', {
         statuses: [
           CallRunStatus.FAILED,
@@ -78,48 +86,63 @@ export class CallSchedulerService {
           CallRunStatus.BUSY,
         ],
       })
-      .andWhere('run.attempts_count < run.allowed_attempts')
+      .andWhere('run.attempts_count < COALESCE(run.allowed_attempts, 3)')
+      .andWhere('run.attempts_count > 0')
       .andWhere(
-        `
-        NOT EXISTS (
-          SELECT 1 FROM calls c 
-          WHERE c.call_run_id = run.id 
-          AND c.status IN (:...activeStatuses)
-        )
-      `,
+        `NOT EXISTS (
+         SELECT 1 FROM calls c 
+         WHERE c.call_run_id = run.id 
+         AND c.status IN (:...activeStatuses)
+       )`,
         { activeStatuses: [CallStatus.REGISTERED, CallStatus.ONGOING] },
-      )
-      .groupBy('run.id')
-      .addGroupBy('run.organization_id')
-      .addGroupBy('run.schedule_id')
-      .addGroupBy('run.patient_id')
-      .addGroupBy('run.script_id')
-      .addGroupBy('run.scheduled_for')
-      .addGroupBy('run.status')
-      .addGroupBy('run.attempts_count')
-      .addGroupBy('run.allowed_attempts')
-      .addGroupBy('run.total_duration_seconds')
-      .addGroupBy('run.created_at')
-      .addGroupBy('run.updated_at')
-      .addGroupBy('patient.id')
-      .addGroupBy('contact.id')
-      .addGroupBy('script.id')
-      .addGroupBy('schedule.id')
-      .having(
-        `
-        MAX(call.ended_at) IS NULL OR 
-        MAX(call.ended_at) <= :retryTime
-      `,
-        {
-          retryTime: moment().subtract(5, 'minutes').toDate(), // Default retry interval
-        },
-      )
-      .getMany();
+      );
 
-    this.logger.log(`Found ${failedCallRuns.length} call runs to retry`);
+    // Use getRawAndEntities so we have both entity instances and the raw max_ended_at
+    const { entities, raw } =
+      (await failedCallRunsQuery.getRawAndEntities()) as {
+        entities: CallRun[];
+        raw: Array<{ max_ended_at?: string; MAX?: string }>;
+      };
+
+    const failedCallRuns = entities.map((ent, idx) => {
+      // raw[idx] should contain a field named max_ended_at
+      const maxEnded = raw[idx]?.max_ended_at ?? raw[idx]?.MAX ?? null;
+      return {
+        ...ent,
+        max_ended_at: maxEnded,
+      } as CallRun & { max_ended_at: string | null };
+    });
+
+    this.logger.log(
+      `Found ${failedCallRuns.length} potential call runs to retry`,
+    );
 
     for (const callRun of failedCallRuns) {
-      await this.retryCallRun(callRun);
+      const maxEndedAt = callRun.max_ended_at
+        ? new Date(callRun.max_ended_at)
+        : null;
+
+      const retryInterval = callRun.schedule?.retry_interval_minutes ?? 5;
+
+      // Defensive: if there is no call timestamp, skip rather than treating as "now"
+      if (!maxEndedAt) {
+        this.logger.debug(
+          `Skipping retry for run ${callRun.id} because no call timestamps were found`,
+        );
+        continue;
+      }
+
+      const retryDue = moment(maxEndedAt)
+        .add(retryInterval, 'minutes')
+        .toDate();
+
+      this.logger.debug(
+        `run=${callRun.id} maxEndedAt=${maxEndedAt.toISOString()} retryInterval=${retryInterval} retryDue=${retryDue.toISOString()}`,
+      );
+
+      if (new Date() >= retryDue) {
+        await this.retryCallRun(callRun);
+      }
     }
   }
 

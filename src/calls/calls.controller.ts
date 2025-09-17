@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CallsService } from './calls.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
@@ -8,6 +15,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { GetCallsQuery } from './dto/get-today-calls.dto';
 import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { User } from 'src/users/entities/user.entity';
+import { GetPatientCallHistoryDto } from './dto/get-patient-call-history.dto';
 
 @Controller('calls')
 export class CallsController {
@@ -24,5 +32,18 @@ export class CallsController {
     //   getCallsQuery,
     //   user,
     // );
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
+  @Get('call-history/:patientId')
+  getPatientCallHistory(
+    @Param('patientId', ParseUUIDPipe) id: string,
+    @Query() getPatientCallHistoryDto: GetPatientCallHistoryDto,
+  ) {
+    return this.callsService.getCallHistoryForPatient(
+      id,
+      getPatientCallHistoryDto,
+    );
   }
 }
