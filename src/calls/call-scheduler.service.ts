@@ -41,7 +41,9 @@ export class CallSchedulerService {
         .createQueryBuilder('run')
         .leftJoinAndSelect('run.patient', 'patient')
         .leftJoinAndSelect('patient.contact', 'contact')
+        .leftJoinAndSelect('patient.medicalInfo', 'medicalInfo')
         .leftJoinAndSelect('run.script', 'script')
+        .leftJoinAndSelect('script.questions', 'questions')
         .leftJoinAndSelect('run.schedule', 'schedule')
         .where('run.status = :status', { status: CallRunStatus.SCHEDULED })
         .andWhere('run.scheduled_for <= :now', { now: new Date() })
@@ -68,7 +70,9 @@ export class CallSchedulerService {
       .createQueryBuilder('run')
       .leftJoinAndSelect('run.patient', 'patient')
       .leftJoinAndSelect('patient.contact', 'contact')
+      .leftJoinAndSelect('patient.medicalInfo', 'medicalInfo')
       .leftJoinAndSelect('run.script', 'script')
+      .leftJoinAndSelect('script.questions', 'questions')
       .leftJoinAndSelect('run.schedule', 'schedule')
       // correlated subquery for max_ended_at, avoids GROUP BY issues
       .addSelect(

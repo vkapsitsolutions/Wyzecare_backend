@@ -85,6 +85,8 @@ export class CallUtilsService {
       questions: script.questions || [],
     };
 
+    console.log('payload :>> ', payload);
+
     return payload;
   }
 

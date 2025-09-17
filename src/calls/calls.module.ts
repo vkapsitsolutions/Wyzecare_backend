@@ -11,10 +11,11 @@ import { CallSchedulerService } from './call-scheduler.service';
 import { AiCallingModule } from 'src/ai-calling/ai-calling.module';
 import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
 import { CallUtilsService } from './call-utils.servcie';
+import { Patient } from 'src/patients/entities/patient.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CallRun, Call, CallSchedule]),
+    TypeOrmModule.forFeature([CallRun, Call, CallSchedule, Patient]),
     ScheduleModule.forRoot(),
     SubscriptionsModule,
     RolesModule,

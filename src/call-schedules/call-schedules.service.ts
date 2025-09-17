@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets } from 'typeorm';
+import { Repository, Brackets, SelectQueryBuilder } from 'typeorm';
 import { CallSchedule } from './entities/call-schedule.entity'; // Adjust path to your entity
 import { CreateCallScheduleDto } from './dto/create-schedule.dto';
 import { User } from 'src/users/entities/user.entity';
@@ -18,6 +18,32 @@ import * as moment from 'moment-timezone';
 import { CallsService } from 'src/calls/calls.service';
 import { CallFrequency, ScheduleStatus } from './enums/call-schedule.enum';
 import { PatientAccessService } from 'src/patients/patient-access.service';
+import { CallRun } from 'src/calls/entities/call-runs.entity';
+import { CallRunStatus } from 'src/calls/enums/calls.enum';
+
+export interface GetSchedulesQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  organizationId: string;
+}
+
+export interface ScheduleStats {
+  completedToday: number;
+  unsuccessfulToday: number;
+  remainingToday: number;
+}
+
+export interface GetSchedulesResponse {
+  success: boolean;
+  message: string;
+  stats: ScheduleStats;
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  data: any[];
+}
 
 @Injectable()
 export class CallSchedulesService {
@@ -32,6 +58,11 @@ export class CallSchedulesService {
     private readonly callsService: CallsService,
 
     private readonly patientAccessService: PatientAccessService,
+
+    @InjectRepository(CallRun)
+    private callRunRepository: Repository<CallRun>,
+    // @InjectRepository(Call)
+    // private callRepository: Repository<Call>,
   ) {}
 
   async create(
@@ -136,7 +167,8 @@ export class CallSchedulesService {
     getCallSchedulesQuery: GetCallSchedulesQuery,
     loggedInUser: User,
   ) {
-    const { status, page, limit, keyword } = getCallSchedulesQuery ?? {};
+    const { status, page, limit, keyword, patientId } =
+      getCallSchedulesQuery ?? {};
 
     const pageNum = Math.max(1, Number(page) || 1);
     const perPage = Math.min(100, Math.max(1, Number(limit) || 20));
@@ -149,6 +181,10 @@ export class CallSchedulesService {
 
     if (status) {
       qb.andWhere('schedule.status = :status', { status });
+    }
+
+    if (patientId) {
+      qb.andWhere('schedule.patient_id = :patientId', { patientId });
     }
 
     const rawKeyword = keyword?.toString().trim();
@@ -449,5 +485,254 @@ export class CallSchedulesService {
     // }
 
     return candidate.toDate();
+  }
+
+  async getSchedulesWithStats(
+    query: GetSchedulesQuery,
+  ): Promise<GetSchedulesResponse> {
+    const { page = 1, limit = 10, search, organizationId } = query;
+
+    // Get today's date boundaries
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Calculate stats for today
+    const stats = await this.getTodayStats(organizationId, today, tomorrow);
+
+    // Build main query with complex ordering
+    const queryBuilder = this.buildScheduleQuery(organizationId, search, today);
+
+    // Get total count
+    const total = await queryBuilder.getCount();
+
+    // Apply pagination and get results
+    const data = await queryBuilder
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    // Transform data to match your UI requirements
+    const transformedData = await this.transformScheduleData(data, today);
+
+    return {
+      success: true,
+      message: 'upcoming calls fetched',
+      stats,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      data: transformedData,
+    };
+  }
+
+  private async getTodayStats(
+    organizationId: string,
+    today: Date,
+    tomorrow: Date,
+  ): Promise<ScheduleStats> {
+    // Get today's completed calls
+    const completedToday = await this.callRunRepository
+      .createQueryBuilder('cr')
+      .where('cr.organization_id = :organizationId', { organizationId })
+      .andWhere('cr.scheduled_for >= :today', { today })
+      .andWhere('cr.scheduled_for < :tomorrow', { tomorrow })
+      .andWhere('cr.status = :status', { status: CallRunStatus.COMPLETED })
+      .getCount();
+
+    // Get today's unsuccessful calls (failed, no answer, busy)
+    const unsuccessfulToday = await this.callRunRepository
+      .createQueryBuilder('cr')
+      .where('cr.organization_id = :organizationId', { organizationId })
+      .andWhere('cr.scheduled_for >= :today', { today })
+      .andWhere('cr.scheduled_for < :tomorrow', { tomorrow })
+      .andWhere('cr.status IN (:...statuses)', {
+        statuses: [
+          CallRunStatus.FAILED,
+          CallRunStatus.NO_ANSWER,
+          CallRunStatus.BUSY,
+          CallRunStatus.CANCELLED,
+        ],
+      })
+      .getCount();
+
+    // Get today's remaining calls (scheduled, in progress)
+    const remainingToday = await this.callRunRepository
+      .createQueryBuilder('cr')
+      .where('cr.organization_id = :organizationId', { organizationId })
+      .andWhere('cr.scheduled_for >= :today', { today })
+      .andWhere('cr.scheduled_for < :tomorrow', { tomorrow })
+      .andWhere('cr.status IN (:...statuses)', {
+        statuses: [CallRunStatus.SCHEDULED, CallRunStatus.IN_PROGRESS],
+      })
+      .getCount();
+
+    return {
+      completedToday,
+      unsuccessfulToday,
+      remainingToday,
+    };
+  }
+
+  private buildScheduleQuery(
+    organizationId: string,
+    search?: string,
+    today?: Date,
+  ): SelectQueryBuilder<CallSchedule> {
+    const queryBuilder = this.callScheduleRepository
+      .createQueryBuilder('cs')
+      .leftJoinAndSelect('cs.patient', 'patient')
+      .leftJoinAndSelect('cs.script', 'script')
+      .leftJoinAndSelect('cs.organization', 'organization')
+      .leftJoinAndSelect('cs.callRuns', 'callRuns')
+      .leftJoinAndSelect('callRuns.calls', 'calls')
+      .where('cs.organization_id = :organizationId', { organizationId });
+
+    // Add search functionality
+    if (search) {
+      queryBuilder.andWhere(
+        '(patient.first_name ILIKE :search OR patient.last_name ILIKE :search OR script.name ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    // Complex ordering logic
+    queryBuilder
+      .addSelect(
+        `CASE 
+          WHEN cs.status = '${ScheduleStatus.INACTIVE}' THEN 4
+          WHEN cs.status = '${ScheduleStatus.PAUSED}' THEN 3
+          WHEN cs.next_scheduled_at IS NULL THEN 2
+          ELSE 1
+        END`,
+        'priority_order',
+      )
+      .addSelect(
+        `CASE 
+          WHEN DATE(cs.next_scheduled_at) = CURRENT_DATE THEN 1
+          WHEN DATE(cs.next_scheduled_at) = CURRENT_DATE + INTERVAL '1 day' THEN 2
+          WHEN DATE(cs.next_scheduled_at) = CURRENT_DATE + INTERVAL '2 days' THEN 3
+          ELSE 4
+        END`,
+        'date_priority',
+      )
+      .addSelect(
+        `CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM call_runs cr 
+            WHERE cr.schedule_id = cs.id 
+            AND DATE(cr.scheduled_for) = CURRENT_DATE 
+            AND cr.status = '${CallRunStatus.COMPLETED}'
+          ) THEN 1
+          WHEN EXISTS (
+            SELECT 1 FROM call_runs cr 
+            WHERE cr.schedule_id = cs.id 
+            AND DATE(cr.scheduled_for) = CURRENT_DATE 
+            AND cr.status IN ('${CallRunStatus.SCHEDULED}', '${CallRunStatus.IN_PROGRESS}')
+          ) THEN 2
+          ELSE 3
+        END`,
+        'completion_order',
+      )
+      .orderBy('priority_order', 'ASC')
+      .addOrderBy('date_priority', 'ASC')
+      .addOrderBy('completion_order', 'ASC')
+      .addOrderBy('cs.next_scheduled_at', 'ASC')
+      .addOrderBy('cs.created_at', 'DESC');
+
+    return queryBuilder;
+  }
+
+  private async transformScheduleData(
+    schedules: CallSchedule[],
+    today: Date,
+  ): Promise<any[]> {
+    return Promise.all(
+      schedules.map(async (schedule) => {
+        // Get the most recent call run for today
+        const todayCallRun = await this.callRunRepository
+          .createQueryBuilder('cr')
+          .leftJoinAndSelect('cr.calls', 'calls')
+          .where('cr.schedule_id = :scheduleId', { scheduleId: schedule.id })
+          .andWhere('DATE(cr.scheduled_for) = CURRENT_DATE')
+          .orderBy('cr.created_at', 'DESC')
+          .getOne();
+
+        // Determine status based on call runs and schedule status
+        let displayStatus = 'No Schedule';
+        let statusClass = 'no-schedule';
+
+        if (schedule.status === ScheduleStatus.ACTIVE) {
+          if (todayCallRun) {
+            switch (todayCallRun.status) {
+              case CallRunStatus.COMPLETED:
+                displayStatus = 'Completed';
+                statusClass = 'completed';
+                break;
+              case CallRunStatus.SCHEDULED:
+              case CallRunStatus.IN_PROGRESS:
+                displayStatus = 'Scheduled';
+                statusClass = 'scheduled';
+                break;
+              case CallRunStatus.FAILED:
+              case CallRunStatus.NO_ANSWER:
+              case CallRunStatus.BUSY:
+              case CallRunStatus.CANCELLED:
+                displayStatus = 'Failed';
+                statusClass = 'failed';
+                break;
+              default:
+                displayStatus = 'Scheduled';
+                statusClass = 'scheduled';
+            }
+          } else if (schedule.next_scheduled_at) {
+            displayStatus = 'Scheduled';
+            statusClass = 'scheduled';
+          }
+        } else if (schedule.status === ScheduleStatus.PAUSED) {
+          displayStatus = 'Paused';
+          statusClass = 'paused';
+        }
+
+        return {
+          id: schedule.id,
+          patientName: schedule.patient
+            ? `${schedule.patient.fullName}`.trim()
+            : 'Unknown Patient',
+          scriptName: schedule.script?.title || 'No Script',
+          scheduledDate: schedule.next_scheduled_at
+            ? schedule.next_scheduled_at.toISOString().split('T')[0]
+            : null,
+          scheduledTime: schedule.next_scheduled_at
+            ? schedule.next_scheduled_at
+                .toTimeString()
+                .split(' ')[0]
+                .substring(0, 5)
+            : null,
+          timezone: schedule.timezone,
+          status: displayStatus,
+          statusClass,
+          frequency: schedule.frequency,
+          lastCompleted: schedule.last_completed,
+          timeWindow: {
+            start: schedule.time_window_start,
+            end: schedule.time_window_end,
+          },
+          preferredDays: schedule.preferred_days,
+          maxAttempts: schedule.max_attempts,
+          retryInterval: schedule.retry_interval_minutes,
+          estimatedDuration: schedule.estimated_duration_seconds,
+          instructions: schedule.instructions,
+          agentGender: schedule.agent_gender,
+          organizationId: schedule.organization_id,
+          patientId: schedule.patient_id,
+          scriptId: schedule.script_id,
+          createdAt: schedule.created_at,
+          updatedAt: schedule.updated_at,
+        };
+      }),
+    );
   }
 }

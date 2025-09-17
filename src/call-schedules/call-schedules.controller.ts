@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard'; // Adjust path if needed
@@ -21,6 +22,7 @@ import { UpdateCallScheduleDto } from './dto/update-schedule.dto';
 import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
 import { Permission } from 'src/roles/enums/roles-permissions.enum';
+import { ListUpcomingCallsQuery } from './dto/list-upcoming-calls-query.dto';
 
 @Controller('call-schedules')
 export class CallSchedulesController {
@@ -53,8 +55,24 @@ export class CallSchedulesController {
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
   @RequirePermissions(Permission.EDIT_PATIENTS)
+  @Get('upcoming-calls')
+  getUpcomingCalls(
+    @CurrentUser() user: User,
+    @Query() query: ListUpcomingCallsQuery,
+  ) {
+    if (!user.organization_id)
+      throw new BadRequestException('User does not belong to any organization');
+    return this.callSchedulesService.getSchedulesWithStats({
+      organizationId: user.organization_id,
+      limit: query.limit,
+      page: query.page,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
   @Get(':id')
-  findOne(@CurrentUser() user: User, @Param('id') id: string) {
+  findOne(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     if (!user.organization_id)
       throw new BadRequestException('User does not belong to any organization');
     return this.callSchedulesService.findOne(user.organization_id, id, user);
@@ -65,7 +83,7 @@ export class CallSchedulesController {
   @Patch(':id')
   update(
     @CurrentUser() user: User,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateCallScheduleDto: UpdateCallScheduleDto,
   ) {
     if (!user.organization_id)
@@ -81,7 +99,7 @@ export class CallSchedulesController {
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
   @RequirePermissions(Permission.EDIT_PATIENTS)
   @Delete(':id')
-  remove(@CurrentUser() user: User, @Param('id') id: string) {
+  remove(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     if (!user.organization_id)
       throw new BadRequestException('User does not belong to any organization');
     return this.callSchedulesService.remove(user.organization_id, id, user);
