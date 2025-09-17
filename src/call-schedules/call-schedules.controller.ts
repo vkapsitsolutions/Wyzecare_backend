@@ -66,6 +66,7 @@ export class CallSchedulesController {
       organizationId: user.organization_id,
       limit: query.limit,
       page: query.page,
+      search: query.keyword,
     });
   }
 

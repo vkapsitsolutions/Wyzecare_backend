@@ -502,7 +502,7 @@ export class CallSchedulesService {
     const stats = await this.getTodayStats(organizationId, today, tomorrow);
 
     // Build main query with complex ordering
-    const queryBuilder = this.buildScheduleQuery(organizationId, search, today);
+    const queryBuilder = this.buildScheduleQuery(organizationId, search);
 
     // Get total count
     const total = await queryBuilder.getCount();
@@ -514,7 +514,7 @@ export class CallSchedulesService {
       .getMany();
 
     // Transform data to match your UI requirements
-    const transformedData = await this.transformScheduleData(data, today);
+    const transformedData = await this.transformScheduleData(data);
 
     return {
       success: true,
@@ -579,7 +579,6 @@ export class CallSchedulesService {
   private buildScheduleQuery(
     organizationId: string,
     search?: string,
-    today?: Date,
   ): SelectQueryBuilder<CallSchedule> {
     const queryBuilder = this.callScheduleRepository
       .createQueryBuilder('cs')
@@ -647,7 +646,6 @@ export class CallSchedulesService {
 
   private async transformScheduleData(
     schedules: CallSchedule[],
-    today: Date,
   ): Promise<any[]> {
     return Promise.all(
       schedules.map(async (schedule) => {
