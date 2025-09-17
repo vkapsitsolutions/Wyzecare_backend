@@ -5,11 +5,23 @@ import { Call } from './entities/call.entity';
 import { CallsController } from './calls.controller';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { RolesModule } from 'src/roles/roles.module';
+import { CallRun } from './entities/call-runs.entity';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CallSchedulerService } from './call-scheduler.service';
+import { AiCallingModule } from 'src/ai-calling/ai-calling.module';
+import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
+import { CallUtilsService } from './call-utils.servcie';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Call]), SubscriptionsModule, RolesModule],
-  providers: [CallsService],
-  exports: [CallsService],
+  imports: [
+    TypeOrmModule.forFeature([CallRun, Call, CallSchedule]),
+    ScheduleModule.forRoot(),
+    SubscriptionsModule,
+    RolesModule,
+    AiCallingModule,
+  ],
+  providers: [CallsService, CallSchedulerService, CallUtilsService],
   controllers: [CallsController],
+  exports: [CallsService, CallUtilsService],
 })
 export class CallsModule {}

@@ -1,7 +1,8 @@
 import {
-  BadRequestException,
   Controller,
   Get,
+  Param,
+  ParseUUIDPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { GetCallsQuery } from './dto/get-today-calls.dto';
 import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { User } from 'src/users/entities/user.entity';
+import { GetPatientCallHistoryDto } from './dto/get-patient-call-history.dto';
 
 @Controller('calls')
 export class CallsController {
@@ -23,12 +25,25 @@ export class CallsController {
   @RequirePermissions(Permission.EDIT_PATIENTS)
   @Get('upcoming')
   list(@CurrentUser() user: User, @Query() getCallsQuery: GetCallsQuery) {
-    if (!user.organization_id)
-      throw new BadRequestException('User does not belong to any organization');
-    return this.callsService.listTodaysCalls(
-      user.organization_id,
-      getCallsQuery,
-      user,
+    // if (!user.organization_id)
+    //   throw new BadRequestException('User does not belong to any organization');
+    // return this.callsService.listTodaysCalls(
+    //   user.organization_id,
+    //   getCallsQuery,
+    //   user,
+    // );
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
+  @Get('call-history/:patientId')
+  getPatientCallHistory(
+    @Param('patientId', ParseUUIDPipe) id: string,
+    @Query() getPatientCallHistoryDto: GetPatientCallHistoryDto,
+  ) {
+    return this.callsService.getCallHistoryForPatient(
+      id,
+      getPatientCallHistoryDto,
     );
   }
 }

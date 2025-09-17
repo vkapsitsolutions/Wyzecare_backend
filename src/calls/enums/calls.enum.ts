@@ -1,4 +1,4 @@
-export enum CallStatus {
+export enum CallRunStatus {
   SCHEDULED = 'SCHEDULED',
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
@@ -7,4 +7,11 @@ export enum CallStatus {
   BUSY = 'BUSY',
   CANCELLED = 'CANCELLED',
   SKIPPED = 'SKIPPED',
+}
+export enum CallStatus {
+  REGISTERED = 'REGISTERED',
+  NOT_CONNECTED = 'NOT_CONNECTED',
+  ONGOING = 'ONGOING',
+  ENDED = 'ENDED',
+  ERROR = 'ERROR',
 }
