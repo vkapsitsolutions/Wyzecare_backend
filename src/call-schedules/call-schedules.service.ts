@@ -155,6 +155,8 @@ export class CallSchedulesService {
       await this.callsService.createCallRunFromSchedule(schedule);
     }
 
+    await this.patientsService.updatePatientStatus(patient_id);
+
     return {
       success: true,
       message: 'Call schedule created successfully',
@@ -388,6 +390,8 @@ export class CallSchedulesService {
       await this.callsService.createCallRunFromSchedule(schedule);
     }
 
+    await this.patientsService.updatePatientStatus(schedule.patient_id);
+
     return {
       success: true,
       message: 'Call schedule updated successfully',
@@ -409,6 +413,8 @@ export class CallSchedulesService {
     await this.callScheduleRepository.save(callSchedule);
 
     await this.callScheduleRepository.softDelete({ id });
+
+    await this.patientsService.updatePatientStatus(callSchedule.patient_id);
 
     return {
       success: true,
@@ -592,7 +598,7 @@ export class CallSchedulesService {
     // Add search functionality
     if (search) {
       queryBuilder.andWhere(
-        '(patient.first_name ILIKE :search OR patient.last_name ILIKE :search OR script.name ILIKE :search)',
+        '(patient.first_name ILIKE :search OR patient.last_name ILIKE :search OR script.title ILIKE :search)',
         { search: `%${search}%` },
       );
     }
