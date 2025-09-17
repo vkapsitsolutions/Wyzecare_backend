@@ -8,10 +8,11 @@ import { PatientsModule } from 'src/patients/patients.module';
 import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { CallsModule } from 'src/calls/calls.module';
 import { RolesModule } from 'src/roles/roles.module';
+import { CallRun } from 'src/calls/entities/call-runs.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CallSchedule]),
+    TypeOrmModule.forFeature([CallSchedule, CallRun]),
     SubscriptionsModule,
     PatientsModule,
     CallScriptsModule,
