@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Patient } from './entities/patient.entity';
+import { Patient, PatientStatusEnum } from './entities/patient.entity';
 import { Brackets, Repository } from 'typeorm';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { User } from 'src/users/entities/user.entity';
@@ -70,6 +70,36 @@ export class PatientsService {
 
     const qb = this.patientRepository
       .createQueryBuilder('patient')
+      .leftJoinAndSelect('patient.callSchedules', 'callSchedule')
+      .leftJoinAndSelect('callSchedule.script', 'script')
+      .select([
+        'patient.id',
+        'patient.patientId',
+        'patient.firstName',
+        'patient.lastName',
+        'patient.preferredName',
+        'patient.gender',
+        'patient.dateOfBirth',
+        'patient.roomNumber',
+        'patient.floor',
+        'patient.current_wellness',
+        'patient.status',
+        'patient.notes',
+        'patient.careTeam',
+        'patient.language_preference',
+        'patient.created_at',
+        'callSchedule.id',
+        'callSchedule.frequency',
+        'callSchedule.agent_gender',
+        'callSchedule.timezone',
+        'callSchedule.time_window_start',
+        'callSchedule.time_window_end',
+        'callSchedule.instructions',
+        'callSchedule.status',
+        'callSchedule.last_completed',
+        'callSchedule.next_scheduled_at',
+        'script.title',
+      ])
       .where('patient.organization_id = :orgId', { orgId: organizationId });
 
     if (status) {
@@ -117,10 +147,10 @@ export class PatientsService {
       // non-admins only see patients they have access to (via user_patient_access)
       qb.andWhere(
         `EXISTS (
-        SELECT 1 FROM user_patient_access upa
-        WHERE upa.patient_id = patient.id
-          AND upa.user_id = :userId
-      )`,
+      SELECT 1 FROM user_patient_access upa
+      WHERE upa.patient_id = patient.id
+        AND upa.user_id = :userId
+    )`,
         { userId: loggedInUser.id },
       );
     }
@@ -286,9 +316,8 @@ export class PatientsService {
         const emergencyRepo = manager.getRepository(PatientEmergencyContact);
         const patientRepo = manager.getRepository(Patient);
 
-        // Build contactPayload only with defined fields (so we don't overwrite with undefined)
-        const rawContactPayload: Partial<PatientContact> = {
-          patient_id: patientId,
+        // Common payload with defined fields only, excluding patient_id
+        const commonContactPayload = this.stripUndefined({
           primary_phone: patientContactData.primary_phone,
           alternate_phone: patientContactData.alternate_phone,
           email: patientContactData.email,
@@ -297,9 +326,7 @@ export class PatientsService {
           state: patientContactData.state,
           zip_code: patientContactData.zip_code,
           country: patientContactData.country,
-        };
-
-        const contactPayload = this.stripUndefined(rawContactPayload);
+        });
 
         // upsert PatientContact (one-to-one)
         let savedContact: PatientContact;
@@ -309,12 +336,19 @@ export class PatientsService {
 
         if (existingContact) {
           // update only provided fields
-          await contactRepo.update({ id: existingContact.id }, contactPayload);
+          await contactRepo.update(
+            { id: existingContact.id },
+            commonContactPayload,
+          );
           savedContact = await contactRepo.findOneOrFail({
             where: { id: existingContact.id },
           });
         } else {
-          const created = contactRepo.create(contactPayload);
+          const createPayload = {
+            ...commonContactPayload,
+            patient_id: patientId,
+          };
+          const created = contactRepo.create(createPayload);
           savedContact = await contactRepo.save(created);
         }
 
@@ -347,19 +381,15 @@ export class PatientsService {
           const toSave: Partial<PatientEmergencyContact>[] = [];
 
           for (const ec of incoming) {
-            // prepare payload with only defined fields
-            const rawEcPayload: Partial<PatientEmergencyContact> = {
-              patient_id: patientId,
+            // prepare payload with only defined fields, excluding patient_id for common
+            const commonEcPayload = this.stripUndefined({
               name: ec.name,
-              relationship: ec.relationship ?? undefined,
+              relationship: ec.relationship,
               phone: ec.phone,
-              alternate_phone: ec.alternate_phone ?? undefined,
-              email: ec.email ?? undefined,
+              alternate_phone: ec.alternate_phone,
+              email: ec.email,
               is_primary: ec.is_primary ? true : false,
-            };
-            const ecPayload = this.stripUndefined(
-              rawEcPayload,
-            ) as Partial<PatientEmergencyContact>;
+            });
 
             if (ec.id) {
               incomingIdsSet.add(ec.id);
@@ -368,17 +398,25 @@ export class PatientsService {
                 // merge existing with payload (so unspecified DB fields are preserved)
                 const merged = emergencyRepo.create({
                   ...existing,
-                  ...ecPayload,
+                  ...commonEcPayload,
                 } as Partial<PatientEmergencyContact>);
                 toSave.push(merged);
               } else {
                 // provided id not found -> create new
-                const created = emergencyRepo.create(ecPayload);
+                const createEcPayload = {
+                  ...commonEcPayload,
+                  patient_id: patientId,
+                };
+                const created = emergencyRepo.create(createEcPayload);
                 toSave.push(created);
               }
             } else {
               // new contact (no id)
-              const created = emergencyRepo.create(ecPayload);
+              const createEcPayload = {
+                ...commonEcPayload,
+                patient_id: patientId,
+              };
+              const created = emergencyRepo.create(createEcPayload);
               toSave.push(created);
             }
           }
@@ -455,18 +493,15 @@ export class PatientsService {
         const medicalInfoRepo = manager.getRepository(PatientMedicalInfo);
         const patientRepo = manager.getRepository(Patient);
 
-        // Build Medical info payload only with defined fields (so we don't overwrite with undefined)
-        const rawMedicalInfoPayload: Partial<PatientMedicalInfo> = {
-          patient_id: patientId,
+        // Common payload with defined fields only
+        const commonPayload = this.stripUndefined({
           conditions: medicalInfoDto.conditions,
           medications: medicalInfoDto.medications,
           allergies: medicalInfoDto.allergies,
           primary_physician: medicalInfoDto.primary_physician,
-        };
+        });
 
-        const medicalInfoPayload = this.stripUndefined(rawMedicalInfoPayload);
-
-        // upsert Medical Info payload (one-to-one)
+        // upsert Medical Info
         let savedMedicalInfo: PatientMedicalInfo;
         const existingMedicalInfo = await medicalInfoRepo.findOne({
           where: { patient_id: patientId },
@@ -476,13 +511,17 @@ export class PatientsService {
           // update only provided fields
           await medicalInfoRepo.update(
             { id: existingMedicalInfo.id },
-            medicalInfoPayload,
+            commonPayload,
           );
           savedMedicalInfo = await medicalInfoRepo.findOneOrFail({
             where: { id: existingMedicalInfo.id },
           });
         } else {
-          const created = medicalInfoRepo.create(medicalInfoPayload);
+          const createPayload = {
+            ...commonPayload,
+            patient_id: patientId,
+          };
+          const created = medicalInfoRepo.create(createPayload);
           savedMedicalInfo = await medicalInfoRepo.save(created);
         }
 
@@ -539,5 +578,22 @@ export class PatientsService {
 
     const phone = patient?.contact?.primary_phone?.toString()?.trim();
     return !!phone;
+  }
+
+  async updatePatientStatus(patientId: string) {
+    const patient = await this.patientRepository.findOne({
+      where: { id: patientId },
+      relations: { callSchedules: true },
+    });
+
+    if (patient) {
+      if (patient.callSchedules.length) {
+        patient.status = PatientStatusEnum.SCHEDULED;
+      } else {
+        patient.status = PatientStatusEnum.NOT_SCHEDULED;
+      }
+
+      await this.patientRepository.save(patient);
+    }
   }
 }
