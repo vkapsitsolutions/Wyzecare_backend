@@ -82,4 +82,21 @@ export class CallScriptUtilsService {
 
     return exists;
   }
+
+  async isScriptAssignedToPatient(
+    patientId: string,
+    scriptId: string,
+  ): Promise<boolean> {
+    const exists = await this.callScriptRepository
+      .createQueryBuilder('script')
+      .innerJoin(
+        'script.assignedPatients',
+        'patient',
+        'patient.id = :patientId',
+        { patientId },
+      )
+      .where('script.id = :scriptId', { scriptId })
+      .getExists();
+    return exists;
+  }
 }
