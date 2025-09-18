@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Patient, PatientStatusEnum } from './entities/patient.entity';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { User } from 'src/users/entities/user.entity';
 import { PatientContactDto } from './dto/patient-contacts.dto';
@@ -44,6 +44,7 @@ export class PatientsService {
         contact: true,
         emergencyContacts: true,
         medicalInfo: true,
+        assignedCallScripts: true,
       },
     });
 
@@ -595,5 +596,13 @@ export class PatientsService {
 
       await this.patientRepository.save(patient);
     }
+  }
+
+  async findPatientsByIds(patientIds: string[]) {
+    const patients = await this.patientRepository.find({
+      where: { id: In(patientIds) },
+    });
+
+    return patients;
   }
 }

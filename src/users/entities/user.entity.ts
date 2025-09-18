@@ -102,7 +102,7 @@ export class User {
   @DeleteDateColumn({ type: 'timestamptz' })
   deleted_at: Date | null;
 
-  // New: Many-to-many relation for accessible patients
+  //  Many-to-many relation for accessible patients
   @ManyToMany(() => Patient, (patient) => patient.usersWithAccess)
   @JoinTable({
     name: 'user_patient_access',

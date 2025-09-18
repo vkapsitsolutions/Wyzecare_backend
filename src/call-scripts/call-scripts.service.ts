@@ -18,6 +18,9 @@ import { TestCallDto } from './dto/test-call.dto';
 import { InitiateCallPayload } from 'src/ai-calling/payloads/initiate-call.payload';
 import { AiCallingService } from 'src/ai-calling/ai-calling.service';
 import { ScriptCategory } from './enums/call-scripts.enum';
+import { AssignCallScriptToPatientsDto } from './dto/assign-script.dto';
+import { Patient } from 'src/patients/entities/patient.entity';
+import { PatientsService } from 'src/patients/patients.service';
 
 @Injectable()
 export class CallScriptsService {
@@ -26,6 +29,8 @@ export class CallScriptsService {
     private readonly callScriptRepository: Repository<CallScript>,
     @InjectRepository(ScriptQuestion)
     private readonly scriptQuestionRepository: Repository<ScriptQuestion>,
+
+    private readonly patientsService: PatientsService,
 
     private readonly aiCallingService: AiCallingService,
   ) {}
@@ -129,7 +134,12 @@ export class CallScriptsService {
   async findOne(id: string, organizationId: string) {
     const callScript = await this.callScriptRepository.findOne({
       where: { id, organization_id: organizationId },
-      relations: { questions: true, created_by: true, updated_by: true },
+      relations: {
+        questions: true,
+        assignedPatients: true,
+        created_by: true,
+        updated_by: true,
+      },
     });
     if (!callScript) {
       throw new NotFoundException(`CallScript with ID ${id} not found`);
@@ -301,5 +311,30 @@ export class CallScriptsService {
       message: 'Call initiated successfully',
       result: res,
     };
+  }
+
+  async assignPatients(
+    scriptId: string,
+    assignDto: AssignCallScriptToPatientsDto,
+  ) {
+    const { patientIds } = assignDto;
+    const targetScript = await this.callScriptRepository.findOne({
+      where: { id: scriptId },
+    });
+
+    if (!targetScript) {
+      throw new NotFoundException('Call script not found');
+    }
+
+    let patients: Patient[] = [];
+    if (Array.isArray(patientIds) && patientIds.length > 0) {
+      patients = await this.patientsService.findPatientsByIds(patientIds);
+    }
+
+    targetScript.assignedPatients = patients;
+
+    await this.callScriptRepository.save(targetScript);
+
+    return { success: true, message: 'Call script assigned to patients' };
   }
 }
