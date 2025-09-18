@@ -80,6 +80,7 @@ export class CallUtilsService {
       status: script.status,
       opening_message: script.opening_message,
       closing_message: script.closing_message,
+      special_instruction: schedule?.instructions,
       escalation_triggers: script.escalation_triggers || [],
       patient_medications: patient.medicalInfo?.medications || [],
       questions: script.questions || [],

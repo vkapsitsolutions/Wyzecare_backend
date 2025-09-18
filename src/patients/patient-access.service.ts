@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Patient } from './entities/patient.entity';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { AssignPatientsDto } from './dto/assign-patients.dto';
 import { UploadsService } from 'src/uploads/uploads.service';
+import { PatientsService } from './patients.service';
 
 @Injectable()
 export class PatientAccessService {
@@ -16,6 +22,9 @@ export class PatientAccessService {
     private readonly userRepository: Repository<User>,
 
     private readonly uploadsService: UploadsService,
+
+    @Inject(forwardRef(() => PatientsService))
+    private readonly patientsService: PatientsService,
   ) {}
 
   private async getUserWithAccessiblePatients(userId: string) {
@@ -116,9 +125,7 @@ export class PatientAccessService {
     // If no patientIds provided, clear all accessible patients
     let patients: Patient[] = [];
     if (Array.isArray(patientIds) && patientIds.length > 0) {
-      patients = await this.patientRepository.find({
-        where: { id: In(patientIds) },
-      });
+      patients = await this.patientsService.findPatientsByIds(patientIds);
     }
 
     // Replace the user's accessiblePatients with exactly the patients found.

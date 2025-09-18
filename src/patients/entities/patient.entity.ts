@@ -24,6 +24,7 @@ import { HIPAAAuthorization } from 'src/patient-consents/entites/hipaa-authoriza
 import { PrivacyPreferences } from 'src/patient-consents/entites/privacy-preferences.entity';
 import { TelehealthConsent } from 'src/patient-consents/entites/telehealth-consent.entity';
 import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
+import { CallScript } from 'src/call-scripts/entities/call-script.entity';
 
 export enum WellnessStatusEnum {
   GOOD = 'GOOD',
@@ -183,6 +184,9 @@ export class Patient {
 
   @OneToMany(() => CallSchedule, (callSchedule) => callSchedule.patient)
   callSchedules: CallSchedule[];
+
+  @ManyToMany(() => CallScript, (callScript) => callScript.assignedPatients)
+  assignedCallScripts: CallScript[];
 
   // convenience getter
   get fullName(): string {

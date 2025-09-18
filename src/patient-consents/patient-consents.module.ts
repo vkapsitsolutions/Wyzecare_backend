@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConsentHistoryService } from './services/consent-history.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConsentHistory } from './entites/consent-history.entity';
@@ -25,7 +25,7 @@ import { PatientEmergencyContact } from 'src/patients/entities/patient-emergency
       TelehealthConsent,
       PatientEmergencyContact,
     ]),
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
     RolesModule,
   ],
   providers: [

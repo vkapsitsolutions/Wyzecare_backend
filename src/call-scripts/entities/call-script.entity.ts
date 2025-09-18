@@ -5,6 +5,8 @@ import {
   DeleteDateColumn,
   Entity,
   JoinColumn,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -14,6 +16,7 @@ import {
 import { ScriptCategory, ScriptStatus } from '../enums/call-scripts.enum';
 import { User } from 'src/users/entities/user.entity';
 import { ScriptQuestion } from './script-questions.entity';
+import { Patient } from 'src/patients/entities/patient.entity';
 
 @Unique('UQ_organization_script_slug', ['organization_id', 'slug'])
 @Entity({ name: 'call_scripts' })
@@ -95,6 +98,14 @@ export class CallScript {
 
   @Column({ type: 'boolean', default: true })
   editable: boolean;
+
+  @ManyToMany(() => Patient, (patient) => patient.assignedCallScripts)
+  @JoinTable({
+    name: 'patient_script_assigns',
+    joinColumn: { name: 'script_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'patient_id', referencedColumnName: 'id' },
+  })
+  assignedPatients: Patient[];
 
   // Relations
   @OneToMany(() => ScriptQuestion, (q) => q.script, {

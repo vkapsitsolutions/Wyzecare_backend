@@ -8,6 +8,7 @@ import { RolesModule } from 'src/roles/roles.module';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { AiCallingModule } from 'src/ai-calling/ai-calling.module';
 import { CallScriptUtilsService } from './call-scripts-utils.service';
+import { PatientsModule } from 'src/patients/patients.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { CallScriptUtilsService } from './call-scripts-utils.service';
     RolesModule,
     forwardRef(() => SubscriptionsModule),
     AiCallingModule,
+    PatientsModule,
   ],
   controllers: [CallScriptsController],
   providers: [CallScriptsService, CallScriptUtilsService],

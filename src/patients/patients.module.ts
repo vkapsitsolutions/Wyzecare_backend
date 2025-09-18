@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { PatientsController } from './patients.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,7 +14,7 @@ import { UploadsModule } from 'src/uploads/uploads.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Patient, User]),
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
     RolesModule,
     PatientConsentsModule,
     UploadsModule,

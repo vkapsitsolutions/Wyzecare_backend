@@ -22,6 +22,7 @@ import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscr
 import { UpdateCallScriptDto } from './dto/update-call-script.dto';
 import { ListCallScriptDto } from './dto/list-call-scripts.dto';
 import { TestCallDto } from './dto/test-call.dto';
+import { AssignCallScriptToPatientsDto } from './dto/assign-script.dto';
 
 @Controller('call-scripts')
 export class CallScriptsController {
@@ -110,5 +111,15 @@ export class CallScriptsController {
       testCallDto,
       loggedInUser,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EDIT_PATIENTS)
+  @Post(':id/assign-patients')
+  assignScriptToPatients(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() assignScriptDto: AssignCallScriptToPatientsDto,
+  ) {
+    return this.callScriptsService.assignPatients(id, assignScriptDto);
   }
 }
