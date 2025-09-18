@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   NotFoundException,
   ForbiddenException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
@@ -12,6 +13,7 @@ import { Patient } from 'src/patients/entities/patient.entity'; // Adjust path a
 import { Repository, DataSource } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Request } from 'express';
+import { isUUID } from 'class-validator';
 
 @Injectable()
 export class PatientAccessGuard implements CanActivate {
@@ -42,6 +44,10 @@ export class PatientAccessGuard implements CanActivate {
       throw new ForbiddenException(
         'Patient ID not provided in route parameters',
       );
+    }
+
+    if (!isUUID(patientId)) {
+      throw new UnprocessableEntityException('Invalid patient id');
     }
 
     // Fetch patient with minimal data

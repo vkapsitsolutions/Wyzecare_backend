@@ -7,11 +7,11 @@ import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { RolesModule } from 'src/roles/roles.module';
 import { CallRun } from './entities/call-runs.entity';
 import { ScheduleModule } from '@nestjs/schedule';
-import { CallSchedulerService } from './call-scheduler.service';
 import { AiCallingModule } from 'src/ai-calling/ai-calling.module';
 import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
-import { CallUtilsService } from './call-utils.servcie';
+import { CallUtilsService } from './call-utils.service';
 import { Patient } from 'src/patients/entities/patient.entity';
+import { SchedulerService } from './scheduler.service';
 
 @Module({
   imports: [
@@ -21,7 +21,7 @@ import { Patient } from 'src/patients/entities/patient.entity';
     RolesModule,
     AiCallingModule,
   ],
-  providers: [CallsService, CallSchedulerService, CallUtilsService],
+  providers: [CallsService, SchedulerService, CallUtilsService],
   controllers: [CallsController],
   exports: [CallsService, CallUtilsService],
 })

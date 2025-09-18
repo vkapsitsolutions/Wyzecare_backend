@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Call } from './entities/call.entity';
@@ -6,7 +6,7 @@ import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
 import { CallRunStatus, CallStatus } from './enums/calls.enum';
 import { CallRun } from './entities/call-runs.entity';
 import { ScheduleStatus } from 'src/call-schedules/enums/call-schedule.enum';
-import { CallUtilsService } from './call-utils.servcie';
+import { CallUtilsService } from './call-utils.service';
 import { CallWebhookPayload } from 'src/webhooks/types/webhooks-payload';
 import { GetPatientCallHistoryDto } from './dto/get-patient-call-history.dto';
 
@@ -401,5 +401,18 @@ export class CallsService {
       totalPages,
       data,
     };
+  }
+
+  async getOneCall(id: string, patientId: string) {
+    const callRun = await this.callRunRepository.findOne({
+      where: { id, patient_id: patientId },
+      relations: { calls: true },
+    });
+
+    if (!callRun) {
+      throw new NotFoundException('Call not found');
+    }
+
+    return { success: true, callRun };
   }
 }

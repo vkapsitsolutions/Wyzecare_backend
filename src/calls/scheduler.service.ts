@@ -7,12 +7,12 @@ import { AiCallingService } from 'src/ai-calling/ai-calling.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CallRunStatus, CallStatus } from './enums/calls.enum';
 import * as moment from 'moment-timezone';
-import { CallUtilsService } from './call-utils.servcie';
+import { CallUtilsService } from './call-utils.service';
 import { CallsService } from './calls.service';
 
 @Injectable()
-export class CallSchedulerService {
-  private readonly logger = new Logger(CallSchedulerService.name);
+export class SchedulerService {
+  private readonly logger = new Logger(SchedulerService.name);
 
   constructor(
     @InjectRepository(CallRun)
@@ -52,7 +52,13 @@ export class CallSchedulerService {
       this.logger.log(`Found ${dueCallRuns.length} due call runs`);
 
       for (const callRun of dueCallRuns) {
-        await this.initiateCallRun(callRun);
+        try {
+          await this.initiateCallRun(callRun);
+        } catch (error) {
+          this.logger.error(
+            `Error initiating call run ${callRun.id}: ${error}`,
+          );
+        }
       }
 
       // Process failed call runs that need retry
@@ -145,7 +151,11 @@ export class CallSchedulerService {
       );
 
       if (new Date() >= retryDue) {
-        await this.retryCallRun(callRun);
+        try {
+          await this.retryCallRun(callRun);
+        } catch (error) {
+          this.logger.error(`Error retrying call run ${callRun.id}: ${error}`);
+        }
       }
     }
   }
