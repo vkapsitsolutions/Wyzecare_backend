@@ -29,4 +29,14 @@ export class CallsController {
       getPatientCallHistoryDto,
     );
   }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PatientAccessGuard)
+  @PatientAccessDecorator('read')
+  @Get('call-history/:patientId/:callRunId')
+  getOneCall(
+    @Param('callRunId', ParseUUIDPipe) callRunId: string,
+    @Param('patientId', ParseUUIDPipe) patientId: string,
+  ) {
+    return this.callsService.getOneCall(callRunId, patientId);
+  }
 }
