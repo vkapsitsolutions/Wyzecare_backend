@@ -135,6 +135,17 @@ export class CallSchedulesService {
       throw new NotFoundException(`Call script not found with id ${script_id}`);
     }
 
+    // check script is assigned to patient or not
+    const scriptAssignedToPatient =
+      await this.callScriptUtilsService.isScriptAssignedToPatient(
+        patient_id,
+        script_id,
+      );
+
+    if (!scriptAssignedToPatient) {
+      throw new BadRequestException(`Call script not assigned to patient`);
+    }
+
     const schedule = this.callScheduleRepository.create({
       ...createCallScheduleDto,
       organization_id: organizationId,
@@ -337,6 +348,19 @@ export class CallSchedulesService {
         throw new NotFoundException(
           `Call script not found with id ${script_id}`,
         );
+      }
+    }
+
+    if (patient_id && script_id) {
+      // check script is assigned to patient or not
+      const scriptAssignedToPatient =
+        await this.callScriptUtilsService.isScriptAssignedToPatient(
+          patient_id,
+          script_id,
+        );
+
+      if (!scriptAssignedToPatient) {
+        throw new BadRequestException(`Call script not assigned to patient`);
       }
     }
 
