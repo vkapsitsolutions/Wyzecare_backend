@@ -185,9 +185,7 @@ export class Patient {
   @OneToMany(() => CallSchedule, (callSchedule) => callSchedule.patient)
   callSchedules: CallSchedule[];
 
-  @ManyToMany(() => CallScript, (callScript) => callScript.assignedPatients, {
-    cascade: true,
-  })
+  @ManyToMany(() => CallScript, (callScript) => callScript.assignedPatients)
   assignedCallScripts: CallScript[];
 
   // convenience getter
