@@ -119,4 +119,9 @@ export class PatientsController {
       user,
     );
   }
+
+  @Post('temp/assign-default-scripts')
+  assignDefaultCallScriptsToAllPatients() {
+    return this.patientsService.tempAssignDefaultScriptsToAllPatients();
+  }
 }

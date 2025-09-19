@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -19,6 +21,7 @@ import { MedicalInfoDto } from './dto/medical-info.dto';
 import { PatientMedicalInfo } from './entities/patient-medical-info.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { PatientAccessService } from './patient-access.service';
+import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
 
 @Injectable()
 export class PatientsService {
@@ -27,6 +30,9 @@ export class PatientsService {
     private readonly patientRepository: Repository<Patient>,
 
     private readonly patientAccessService: PatientAccessService,
+
+    @Inject(forwardRef(() => CallScriptUtilsService))
+    private readonly callScriptUtilsService: CallScriptUtilsService,
   ) {}
 
   async findByPatientIdNumber(patientIdNumber: string) {
@@ -284,6 +290,10 @@ export class PatientsService {
 
     const savedPatient = await this.patientRepository.save(newPatient);
 
+    await this.callScriptUtilsService.assignDefaultCallScriptsToPatient(
+      savedPatient,
+    );
+
     return {
       success: true,
       message: 'Patient created successfully',
@@ -334,6 +344,36 @@ export class PatientsService {
         const existingContact = await contactRepo.findOne({
           where: { patient_id: patientId },
         });
+
+        // Determine the new primary phone after update/create
+        let newPrimaryPhone: string | null = null;
+        if (existingContact) {
+          newPrimaryPhone =
+            'primary_phone' in patientContactData
+              ? patientContactData.primary_phone
+              : existingContact.primary_phone;
+        } else {
+          newPrimaryPhone = patientContactData.primary_phone ?? null;
+        }
+
+        // Check for duplicate primary phone within the organization if applicable
+        if (newPrimaryPhone && newPrimaryPhone.trim() !== '') {
+          const conflicting = await contactRepo
+            .createQueryBuilder('contact')
+            .innerJoin('contact.patient', 'patient')
+            .where('contact.primary_phone = :phone', { phone: newPrimaryPhone })
+            .andWhere('patient.organization_id = :orgId', {
+              orgId: organizationId,
+            })
+            .andWhere('contact.patient_id != :patId', { patId: patientId })
+            .getCount();
+
+          if (conflicting > 0) {
+            throw new BadRequestException(
+              `Primary phone ${newPrimaryPhone} is already in use by another patient in this organization`,
+            );
+          }
+        }
 
         if (existingContact) {
           // update only provided fields
@@ -604,5 +644,19 @@ export class PatientsService {
     });
 
     return patients;
+  }
+
+  async tempAssignDefaultScriptsToAllPatients() {
+    const allPatients = await this.patientRepository.find({
+      withDeleted: true,
+    });
+
+    for (const patient of allPatients) {
+      await this.callScriptUtilsService.assignDefaultCallScriptsToPatient(
+        patient,
+      );
+    }
+
+    return { success: true };
   }
 }
