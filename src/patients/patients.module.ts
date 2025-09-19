@@ -10,6 +10,7 @@ import { PatientAccessService } from './patient-access.service';
 import { User } from 'src/users/entities/user.entity';
 import { PatientAccessController } from './patient-access.controller';
 import { UploadsModule } from 'src/uploads/uploads.module';
+import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UploadsModule } from 'src/uploads/uploads.module';
     RolesModule,
     PatientConsentsModule,
     UploadsModule,
+    forwardRef(() => CallScriptsModule),
   ],
   controllers: [PatientsController, PatientAccessController],
   providers: [PatientsService, PatientAccessService],

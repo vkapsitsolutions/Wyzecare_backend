@@ -6,6 +6,8 @@ import { ScriptQuestion } from './entities/script-questions.entity';
 import { initialCallScripts } from './data/call-script.data';
 import slugify from 'slugify';
 import { CallScriptsService } from './call-scripts.service';
+import { PatientsService } from 'src/patients/patients.service';
+import { Patient } from 'src/patients/entities/patient.entity';
 
 @Injectable()
 export class CallScriptUtilsService {
@@ -17,6 +19,8 @@ export class CallScriptUtilsService {
     private readonly scriptQuestionRepository: Repository<ScriptQuestion>,
 
     private readonly callScriptService: CallScriptsService,
+
+    private readonly patientsService: PatientsService,
   ) {}
 
   async createDefaultScriptsForOrganization(organizationId: string): Promise<{
@@ -81,5 +85,21 @@ export class CallScriptUtilsService {
     });
 
     return exists;
+  }
+
+  async assignDefaultCallScriptsToPatient(patient: Patient) {
+    const defaultCallScripts = await this.callScriptRepository.find({
+      where: { organization_id: patient.organization_id, editable: false },
+      relations: { assignedPatients: true },
+    });
+
+    for (const script of defaultCallScripts) {
+      if (!script.assignedPatients.some((p) => p.id === patient.id)) {
+        script.assignedPatients.push(patient);
+        await this.callScriptRepository.save(script);
+      }
+    }
+
+    return { success: true };
   }
 }
