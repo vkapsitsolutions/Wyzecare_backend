@@ -18,7 +18,7 @@ import {
   Verification,
   VerificationStatus,
   VerificationType,
-} from 'src/verifications/entitiies/verification.entity';
+} from 'src/verifications/entities/verification.entity';
 import * as argon2 from 'argon2';
 import { LOGIN_PROVIDER } from './enums/login.provider.enum';
 import { JwtTokenService } from 'src/auth/jwt-token.service';

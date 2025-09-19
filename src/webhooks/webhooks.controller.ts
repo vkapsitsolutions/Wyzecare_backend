@@ -17,10 +17,21 @@ export class WebhooksController {
   @Post('call-event')
   @HttpCode(HttpStatus.OK)
   async receiveWebhook(@Body() payload: CallWebhookPayload) {
-    this.logger.debug('Webhook POST /webhooks');
+    this.logger.debug('Webhook POST /webhooks/call-event');
     // Forward payload to service which will publish SSEs for interested events
     await this.webhooksService.handleWebhooks(payload);
     // Respond quickly to the webhook sender
+    return { ok: true };
+  }
+
+  @Post('alerts')
+  // @UseGuards(WebhookSecretGuard)
+  @HttpCode(HttpStatus.OK)
+  receiveAlert(@Body() payload: any) {
+    this.logger.debug('Webhook POST /webhooks/alerts');
+
+    this.logger.log(`Received alert: ${JSON.stringify(payload)}`);
+
     return { ok: true };
   }
 }
