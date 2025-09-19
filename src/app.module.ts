@@ -67,7 +67,7 @@ import { AlertsModule } from './alerts/alerts.module';
         AWS_BUCKET_REGION: Joi.string().required(),
         CALLING_SERVICE_URI: Joi.string().required(),
         CALLING_SERVICE_TOKEN: Joi.string().required(),
-        WEBHOOK_SECRET: Joi.string().required(),
+        // WEBHOOK_SECRET: Joi.string().required(),
       }),
     }),
 
