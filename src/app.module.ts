@@ -22,6 +22,7 @@ import { AiCallingModule } from './ai-calling/ai-calling.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { CallSchedulesModule } from './call-schedules/call-schedules.module';
 import { CallsModule } from './calls/calls.module';
+import { AlertsModule } from './alerts/alerts.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { CallsModule } from './calls/calls.module';
         AWS_BUCKET_REGION: Joi.string().required(),
         CALLING_SERVICE_URI: Joi.string().required(),
         CALLING_SERVICE_TOKEN: Joi.string().required(),
+        WEBHOOK_SECRET: Joi.string().required(),
       }),
     }),
 
@@ -106,6 +108,8 @@ import { CallsModule } from './calls/calls.module';
     CallSchedulesModule,
 
     CallsModule,
+
+    AlertsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

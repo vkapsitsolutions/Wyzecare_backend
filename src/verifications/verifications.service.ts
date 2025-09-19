@@ -11,7 +11,7 @@ import {
   Verification,
   VerificationStatus,
   VerificationType,
-} from './entitiies/verification.entity';
+} from './entities/verification.entity';
 import generateOtpAndExpiry from 'src/common/helpers/otp-generate';
 import { EmailService } from 'src/email/email.service';
 import * as crypto from 'crypto';
