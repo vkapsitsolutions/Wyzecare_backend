@@ -645,18 +645,4 @@ export class PatientsService {
 
     return patients;
   }
-
-  async tempAssignDefaultScriptsToAllPatients() {
-    const allPatients = await this.patientRepository.find({
-      withDeleted: true,
-    });
-
-    for (const patient of allPatients) {
-      await this.callScriptUtilsService.assignDefaultCallScriptsToPatient(
-        patient,
-      );
-    }
-
-    return { success: true };
-  }
 }
