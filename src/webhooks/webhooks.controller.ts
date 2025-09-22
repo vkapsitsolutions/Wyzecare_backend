@@ -5,9 +5,11 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import type { CallWebhookPayload } from './types/webhooks-payload';
 import { WebhooksService } from './webhooks.service';
+import { WebhookSecretGuard } from './guards/webhooks.guard';
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -25,7 +27,7 @@ export class WebhooksController {
   }
 
   @Post('alerts')
-  // @UseGuards(WebhookSecretGuard)
+  @UseGuards(WebhookSecretGuard)
   @HttpCode(HttpStatus.OK)
   receiveAlert(@Body() payload: any) {
     this.logger.debug('Webhook POST /webhooks/alerts');
