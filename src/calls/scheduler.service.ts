@@ -136,7 +136,7 @@ export class SchedulerService {
 
       // Defensive: if there is no call timestamp, skip rather than treating as "now"
       if (!maxEndedAt) {
-        this.logger.debug(
+        this.logger.warn(
           `Skipping retry for run ${callRun.id} because no call timestamps were found`,
         );
         continue;
