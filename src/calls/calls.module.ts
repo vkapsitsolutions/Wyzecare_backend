@@ -12,6 +12,7 @@ import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
 import { CallUtilsService } from './call-utils.service';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { SchedulerService } from './scheduler.service';
+import { AlertsModule } from 'src/alerts/alerts.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SchedulerService } from './scheduler.service';
     SubscriptionsModule,
     RolesModule,
     AiCallingModule,
+    AlertsModule,
   ],
   providers: [CallsService, SchedulerService, CallUtilsService],
   controllers: [CallsController],

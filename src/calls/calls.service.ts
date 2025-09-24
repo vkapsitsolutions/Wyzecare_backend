@@ -9,6 +9,8 @@ import { ScheduleStatus } from 'src/call-schedules/enums/call-schedule.enum';
 import { CallUtilsService } from './call-utils.service';
 import { CallWebhookPayload } from 'src/webhooks/types/webhooks-payload';
 import { GetPatientCallHistoryDto } from './dto/get-patient-call-history.dto';
+import { AlertsService } from 'src/alerts/alerts.service';
+import { AlertSeverity } from 'src/alerts/entites/alert.entity';
 
 @Injectable()
 export class CallsService {
@@ -25,6 +27,8 @@ export class CallsService {
     private readonly callScheduleRepository: Repository<CallSchedule>,
 
     private readonly callUtilsService: CallUtilsService,
+
+    private readonly alertsService: AlertsService,
   ) {}
 
   async createCallRunFromSchedule(schedule: CallSchedule): Promise<CallRun> {
@@ -320,7 +324,7 @@ export class CallsService {
         status = CallRunStatus.FAILED;
       }
 
-      await this.handleFailedCallRun(callRun, status);
+      await this.handleFailedCallRun(callRun, status, call);
     } else if (call.status === CallStatus.ERROR) {
       callRun.status = CallRunStatus.FAILED;
       await this.handleFailedCallRun(callRun);
@@ -328,12 +332,33 @@ export class CallsService {
     await this.callRunRepository.save(callRun);
   }
 
-  private async handleFailedCallRun(callRun: CallRun, status?: CallRunStatus) {
+  private async handleFailedCallRun(
+    callRun: CallRun,
+    status?: CallRunStatus,
+    call?: Call,
+  ) {
     if (callRun.attempts_count >= (callRun.allowed_attempts || 3)) {
       callRun.status = status || CallRunStatus.FAILED;
       this.logger.log(
         `Call run ${callRun.id} failed after ${callRun.attempts_count} attempts`,
       );
+
+      if (
+        callRun.status === CallRunStatus.NO_ANSWER ||
+        callRun.status === CallRunStatus.BUSY
+      ) {
+        // Create alert for no-answer or busy after max attempts
+        await this.alertsService.createAlert({
+          patientId: callRun.patient_id,
+          alertType: 'No Response',
+          severity: AlertSeverity.INFORMATIONAL,
+          message: `Failed to answer ${callRun.attempts_count} consecutive calls.`,
+          callRunId: callRun.id,
+          callId: call?.id || null,
+          trigger: 'System Generated',
+          scriptId: callRun.script_id || null,
+        });
+      }
 
       // Schedule next occurrence if this is from a recurring schedule
       await this.scheduleNextOccurrence(callRun);
@@ -414,5 +439,14 @@ export class CallsService {
     }
 
     return { success: true, callRun };
+  }
+
+  async getCallByExternalId(externalId: string) {
+    const call = await this.callRepository.findOne({
+      where: { external_id: externalId },
+      relations: { call_run: true },
+    });
+
+    return call;
   }
 }
