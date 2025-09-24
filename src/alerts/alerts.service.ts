@@ -312,13 +312,19 @@ export class AlertsService {
     }
 
     if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0); // start of the day
       qb.andWhere('alert.createdAt >= :startDate', {
-        startDate: startDate,
+        startDate: start.toISOString(),
       });
     }
 
     if (endDate) {
-      qb.andWhere('alert.createdAt <= :endDate', { endDate: endDate });
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // end of the day
+      qb.andWhere('alert.createdAt <= :endDate', {
+        endDate: end.toISOString(),
+      });
     }
 
     if (patientId) {
@@ -362,11 +368,13 @@ export class AlertsService {
     const qb = this.alertsRepository
       .createQueryBuilder('alert')
       .leftJoinAndSelect('alert.patient', 'patient')
+      .leftJoinAndSelect('patient.contact', 'contact')
+      .leftJoinAndSelect('patient.emergencyContacts', 'emergencyContacts')
       .leftJoinAndSelect('alert.acknowledgedBy', 'acknowledgedBy')
       .leftJoinAndSelect('alert.resolvedBy', 'resolvedBy')
       .leftJoinAndSelect('alert.script', 'script')
       .leftJoinAndSelect('alert.callRun', 'callRun')
-      .leftJoinAndSelect('alert.call', 'call')
+      // .leftJoinAndSelect('alert.call', 'call')
       .where('alert.id = :id', { id })
       .andWhere('alert.organization_id = :organizationId', {
         organizationId: loggedInUser.organization_id,
