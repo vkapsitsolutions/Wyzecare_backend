@@ -1,5 +1,5 @@
 import { PaginationQueryDto } from 'src/common/dto/pagnination-query.dto';
-import { AlertSeverity, AlertStatus } from '../entites/alert.entity';
+import { AlertSeverity, AlertStatus } from '../entities/alert.entity';
 import { Type } from 'class-transformer';
 import { IsDate, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 

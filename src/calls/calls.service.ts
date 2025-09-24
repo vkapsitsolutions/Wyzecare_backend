@@ -10,7 +10,7 @@ import { CallUtilsService } from './call-utils.service';
 import { CallWebhookPayload } from 'src/webhooks/types/webhooks-payload';
 import { GetPatientCallHistoryDto } from './dto/get-patient-call-history.dto';
 import { AlertsService } from 'src/alerts/alerts.service';
-import { AlertSeverity } from 'src/alerts/entites/alert.entity';
+import { AlertSeverity } from 'src/alerts/entities/alert.entity';
 
 @Injectable()
 export class CallsService {
@@ -160,6 +160,17 @@ export class CallsService {
 
     if (!call) {
       this.logger.warn(`Call not found for external_id: ${callData.call_id}`);
+      return;
+    }
+
+    if (
+      call.status === CallStatus.ENDED ||
+      call.status === CallStatus.ERROR ||
+      call.status === CallStatus.NOT_CONNECTED
+    ) {
+      this.logger.log(
+        `Call ${call.id} already finalized with status ${call.status}, skipping update.`,
+      );
       return;
     }
 
@@ -349,6 +360,7 @@ export class CallsService {
       ) {
         // Create alert for no-answer or busy after max attempts
         await this.alertsService.createAlert({
+          organizationId: callRun.organization_id,
           patientId: callRun.patient_id,
           alertType: 'No Response',
           severity: AlertSeverity.INFORMATIONAL,
