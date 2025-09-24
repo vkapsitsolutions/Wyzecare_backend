@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -22,8 +23,11 @@ export class AlertsController {
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
   @Get('counts')
-  async getAlertCounts() {
-    return this.alertsService.getDashboardCounts();
+  async getAlertCounts(@CurrentUser() user: User) {
+    if (!user.organization_id) {
+      throw new BadRequestException('User does not belong to any organization');
+    }
+    return this.alertsService.getDashboardCounts(user.organization_id);
   }
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
@@ -43,8 +47,11 @@ export class AlertsController {
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
   @Get(':id/history')
-  getAlertHistory(@Param('id', ParseUUIDPipe) id: string) {
-    return this.alertsService.getAlertHistory(id);
+  getAlertHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.alertsService.getAlertHistory(id, user);
   }
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)

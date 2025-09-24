@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, Brackets } from 'typeorm';
-import { Alert, AlertSeverity, AlertStatus } from './entites/alert.entity';
-import { AlertAction, AlertHistory } from './entites/alert-history.entity';
+import { Alert, AlertSeverity, AlertStatus } from './entities/alert.entity';
+import { AlertAction, AlertHistory } from './entities/alert-history.entity';
 import { GetAlertsDto } from './dto/get-alerts.dto';
 import { User } from 'src/users/entities/user.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
@@ -19,6 +19,7 @@ import { AlertWebhookPayload } from 'src/webhooks/types/alert-webhook-payload';
 import { CallsService } from 'src/calls/calls.service';
 
 export interface CreateAlertPayload {
+  organizationId: string;
   patientId: string;
   alertType: string; // keep as string to allow flexible alert_type values
   severity: AlertSeverity;
@@ -58,7 +59,7 @@ export class AlertsService {
    * actorUserId: optional id of user who triggered this creation (null for system).
    */
   async createAlert(
-    dto: CreateAlertPayload,
+    payload: CreateAlertPayload,
     actorUserId?: string | null,
   ): Promise<Alert> {
     return this.alertsRepository.manager.transaction(async (manager) => {
@@ -67,15 +68,16 @@ export class AlertsService {
 
       // create alert entity
       const alert = alertRepo.create({
-        patientId: dto.patientId,
-        callId: dto.callId ?? null,
-        callRunId: dto.callRunId ?? null,
-        scriptId: dto.scriptId ?? null,
-        alertType: dto.alertType,
-        severity: dto.severity,
+        organization_id: payload.organizationId,
+        patientId: payload.patientId,
+        callId: payload.callId ?? null,
+        callRunId: payload.callRunId ?? null,
+        scriptId: payload.scriptId ?? null,
+        alertType: payload.alertType,
+        severity: payload.severity,
         status: AlertStatus.ACTIVE,
-        message: dto.message ?? '',
-        trigger: dto.trigger ?? 'System Generated',
+        message: payload.message ?? '',
+        trigger: payload.trigger ?? 'System Generated',
       });
 
       const savedAlert = await alertRepo.save(alert);
@@ -87,7 +89,7 @@ export class AlertsService {
         newStatus: savedAlert.status,
         action: AlertAction.CREATED,
         actorUserId: actorUserId ?? null,
-        note: dto.message ?? 'Alert created',
+        note: payload.message ?? 'Alert created',
       });
 
       await historyRepo.save(history);
@@ -117,6 +119,10 @@ export class AlertsService {
 
       if (!alert) {
         throw new NotFoundException(`Alert with ID ${alertId} not found`);
+      }
+
+      if (alert.organization_id !== loggedInUser.organization_id) {
+        throw new ForbiddenException(`You do not have access to this alert`);
       }
 
       if (loggedInUser && loggedInUser.role?.slug !== RoleName.ADMINISTRATOR) {
@@ -199,21 +205,25 @@ export class AlertsService {
   /**
    * Get dashboard counts for total, active (by severity), and resolved alerts.
    */
-  async getDashboardCounts() {
+  async getDashboardCounts(organizationId: string) {
     const totalAlerts = await this.alertsRepository.count();
 
     const resolvedAlerts = await this.alertsRepository.count({
-      where: { status: AlertStatus.RESOLVED },
+      where: { status: AlertStatus.RESOLVED, organization_id: organizationId },
     });
 
     const activeTotal = await this.alertsRepository.count({
-      where: { status: Not(AlertStatus.RESOLVED) },
+      where: {
+        status: Not(AlertStatus.RESOLVED),
+        organization_id: organizationId,
+      },
     });
 
     const activeCritical = await this.alertsRepository.count({
       where: {
         status: Not(AlertStatus.RESOLVED),
         severity: AlertSeverity.CRITICAL,
+        organization_id: organizationId,
       },
     });
 
@@ -221,6 +231,7 @@ export class AlertsService {
       where: {
         status: Not(AlertStatus.RESOLVED),
         severity: AlertSeverity.IMPORTANT,
+        organization_id: organizationId,
       },
     });
 
@@ -228,6 +239,7 @@ export class AlertsService {
       where: {
         status: Not(AlertStatus.RESOLVED),
         severity: AlertSeverity.INFORMATIONAL,
+        organization_id: organizationId,
       },
     });
 
@@ -251,7 +263,7 @@ export class AlertsService {
    * Find alerts with pagination and filters.
    * Includes patient relation for display purposes.
    */
-  async findAlerts(getAlertsDto: GetAlertsDto, loggedInUser?: User) {
+  async findAlerts(getAlertsDto: GetAlertsDto, loggedInUser: User) {
     const {
       limit,
       page,
@@ -265,6 +277,9 @@ export class AlertsService {
 
     const qb = this.alertsRepository
       .createQueryBuilder('alert')
+      .where('alert.organization_id = :organizationId', {
+        organizationId: loggedInUser.organization_id,
+      })
       .leftJoinAndSelect('alert.patient', 'patient')
       .orderBy('alert.createdAt', 'DESC');
 
@@ -343,7 +358,7 @@ export class AlertsService {
     };
   }
 
-  async getAlertDetails(id: string, loggedInUser?: User) {
+  async getAlertDetails(id: string, loggedInUser: User) {
     const qb = this.alertsRepository
       .createQueryBuilder('alert')
       .leftJoinAndSelect('alert.patient', 'patient')
@@ -352,7 +367,10 @@ export class AlertsService {
       .leftJoinAndSelect('alert.script', 'script')
       .leftJoinAndSelect('alert.callRun', 'callRun')
       .leftJoinAndSelect('alert.call', 'call')
-      .where('alert.id = :id', { id });
+      .where('alert.id = :id', { id })
+      .andWhere('alert.organization_id = :organizationId', {
+        organizationId: loggedInUser.organization_id,
+      });
 
     // restrict to patients the user has access to (unless admin)
     if (loggedInUser && loggedInUser.role?.slug !== RoleName.ADMINISTRATOR) {
@@ -380,11 +398,14 @@ export class AlertsService {
   /**
    * Get the history for a specific alert.
    */
-  async getAlertHistory(alertId: string) {
+  async getAlertHistory(alertId: string, loggedInUser: User) {
     const alertHistory = await this.historyRepository.find({
-      where: { alertId },
+      where: {
+        alertId,
+        alert: { organization_id: loggedInUser.organization_id },
+      },
       order: { createdAt: 'DESC' },
-      relations: ['actorUser'],
+      relations: ['actorUser', 'alert'],
     });
 
     return {
@@ -417,7 +438,22 @@ export class AlertsService {
 
     const severity = AlertSeverity[key];
 
+    const existingAlert = await this.alertsRepository.findOne({
+      where: {
+        call: { external_id: call_id },
+      },
+      relations: ['call'],
+    });
+
+    if (existingAlert) {
+      this.logger.log(
+        `Alert already exists for call ${call_id} with type ${alert_data.level}`,
+      );
+      return;
+    }
+
     await this.createAlert({
+      organizationId: call.organization_id,
       patientId: call.patient_id,
       alertType: alert_data.level,
       severity: severity,

@@ -12,6 +12,7 @@ import { CallScript } from 'src/call-scripts/entities/call-script.entity';
 import { User } from 'src/users/entities/user.entity';
 import { CallRun } from 'src/calls/entities/call-runs.entity';
 import { Patient } from 'src/patients/entities/patient.entity';
+import { Organization } from 'src/organizations/entities/organization.entity';
 
 export enum AlertSeverity {
   INFORMATIONAL = 'informational',
@@ -30,6 +31,16 @@ export enum AlertStatus {
 export class Alert {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;
+
+  @Column('uuid', { name: 'organization_id', nullable: false })
+  organization_id!: string;
+
+  @ManyToOne(() => Organization, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'organization_id' })
+  organization?: Organization;
 
   @Column('uuid', { name: 'patient_id' })
   patientId: string;
