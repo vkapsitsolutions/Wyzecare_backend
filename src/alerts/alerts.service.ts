@@ -8,7 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, Brackets } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { Alert, AlertSeverity, AlertStatus } from './entities/alert.entity';
 import { AlertAction, AlertHistory } from './entities/alert-history.entity';
 import { GetAlertsDto } from './dto/get-alerts.dto';
@@ -203,65 +203,6 @@ export class AlertsService {
   }
 
   /**
-   * Get dashboard counts for total, active (by severity), and resolved alerts.
-   */
-  async getDashboardCounts(organizationId: string) {
-    const totalAlerts = await this.alertsRepository.count({
-      where: { organization_id: organizationId },
-    });
-
-    const resolvedAlerts = await this.alertsRepository.count({
-      where: { status: AlertStatus.RESOLVED, organization_id: organizationId },
-    });
-
-    const activeTotal = await this.alertsRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        organization_id: organizationId,
-      },
-    });
-
-    const activeCritical = await this.alertsRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        severity: AlertSeverity.CRITICAL,
-        organization_id: organizationId,
-      },
-    });
-
-    const activeImportant = await this.alertsRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        severity: AlertSeverity.IMPORTANT,
-        organization_id: organizationId,
-      },
-    });
-
-    const activeInformational = await this.alertsRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        severity: AlertSeverity.INFORMATIONAL,
-        organization_id: organizationId,
-      },
-    });
-
-    return {
-      success: true,
-      message: 'Alerts Counts fetched',
-      data: {
-        totalAlerts,
-        activeAlerts: {
-          total: activeTotal,
-          critical: activeCritical,
-          important: activeImportant,
-          informational: activeInformational,
-        },
-        resolvedAlerts,
-      },
-    };
-  }
-
-  /**
    * Find alerts with pagination and filters.
    * Includes patient relation for display purposes.
    */
@@ -355,10 +296,34 @@ export class AlertsService {
 
     const totalPages = Math.ceil(total / limit);
 
+    const activeCount = await this.alertsRepository.count({
+      where: {
+        organization_id: loggedInUser.organization_id,
+        status: AlertStatus.ACTIVE,
+      },
+    });
+
+    const resolvedCount = await this.alertsRepository.count({
+      where: {
+        organization_id: loggedInUser.organization_id,
+        status: AlertStatus.RESOLVED,
+      },
+    });
+
+    const acknowledgedCount = await this.alertsRepository.count({
+      where: {
+        organization_id: loggedInUser.organization_id,
+        status: AlertStatus.ACKNOWLEDGED,
+      },
+    });
+
     return {
       success: true,
       message: 'Alerts fetched',
       total,
+      activeCount,
+      resolvedCount,
+      acknowledgedCount,
       page,
       limit,
       totalPages,

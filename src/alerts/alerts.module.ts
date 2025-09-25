@@ -6,6 +6,7 @@ import { AlertHistory } from './entities/alert-history.entity';
 import { Alert } from './entities/alert.entity';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { CallsModule } from 'src/calls/calls.module';
+import { AlertMetricsService } from './alert-metrics.service';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { CallsModule } from 'src/calls/calls.module';
     SubscriptionsModule,
     forwardRef(() => CallsModule),
   ],
-  providers: [AlertsService],
+  providers: [AlertsService, AlertMetricsService],
   controllers: [AlertsController],
   exports: [AlertsService],
 })
