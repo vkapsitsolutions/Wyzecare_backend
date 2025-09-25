@@ -16,10 +16,14 @@ import { GetAlertsDto } from './dto/get-alerts.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { User } from 'src/users/entities/user.entity';
 import { UpdateAlertStatusDto } from './dto/update-status.dto';
+import { AlertMetricsService } from './alert-metrics.service';
 
 @Controller('alerts')
 export class AlertsController {
-  constructor(private readonly alertsService: AlertsService) {}
+  constructor(
+    private readonly alertsService: AlertsService,
+    private readonly alertMetricsService: AlertMetricsService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
   @Get('counts')
@@ -27,7 +31,7 @@ export class AlertsController {
     if (!user.organization_id) {
       throw new BadRequestException('User does not belong to any organization');
     }
-    return this.alertsService.getDashboardCounts(user.organization_id);
+    return this.alertMetricsService.getDashboardCounts(user.organization_id);
   }
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
