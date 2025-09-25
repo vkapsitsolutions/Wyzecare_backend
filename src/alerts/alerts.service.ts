@@ -206,7 +206,9 @@ export class AlertsService {
    * Get dashboard counts for total, active (by severity), and resolved alerts.
    */
   async getDashboardCounts(organizationId: string) {
-    const totalAlerts = await this.alertsRepository.count();
+    const totalAlerts = await this.alertsRepository.count({
+      where: { organization_id: organizationId },
+    });
 
     const resolvedAlerts = await this.alertsRepository.count({
       where: { status: AlertStatus.RESOLVED, organization_id: organizationId },
