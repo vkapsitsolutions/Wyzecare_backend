@@ -64,4 +64,19 @@ export class ReportsController {
       query,
     );
   }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @Get('script-performance-metrics')
+  scriptPerformanceMetrics(
+    @CurrentUser() user: User,
+    @Query() query: GetDailyPerformanceBreakDown,
+  ) {
+    if (!user.organization_id) {
+      throw new BadRequestException('User not belongs to any organization');
+    }
+    return this.reportsService.getScriptPerformanceMetrics(
+      user.organization_id,
+      query,
+    );
+  }
 }

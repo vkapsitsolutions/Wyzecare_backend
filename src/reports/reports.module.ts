@@ -5,9 +5,16 @@ import { ReportsController } from './reports.controller';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { PatientsModule } from 'src/patients/patients.module';
 import { CallsModule } from 'src/calls/calls.module';
+import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 
 @Module({
-  imports: [AlertsModule, SubscriptionsModule, PatientsModule, CallsModule],
+  imports: [
+    AlertsModule,
+    SubscriptionsModule,
+    PatientsModule,
+    CallsModule,
+    CallScriptsModule,
+  ],
   providers: [ReportsService],
   controllers: [ReportsController],
 })

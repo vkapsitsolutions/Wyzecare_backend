@@ -11,7 +11,7 @@ import { AlertMetricsService } from './alert-metrics.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Alert, AlertHistory]),
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
     forwardRef(() => CallsModule),
   ],
   providers: [AlertsService, AlertMetricsService],

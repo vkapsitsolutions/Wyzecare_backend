@@ -419,4 +419,87 @@ export class CallMetricsService {
       },
     };
   }
+
+  async getCallSuccessRatesByScript(scriptId: string, period?: number) {
+    let dateCondition = {};
+    if (period) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - period);
+      dateCondition = {
+        created_at: MoreThanOrEqual(startDate),
+      };
+    }
+
+    const successCallsCount = await this.callRunRepository.count({
+      where: {
+        script_id: scriptId,
+        status: CallRunStatus.COMPLETED,
+        ...dateCondition,
+      },
+    });
+
+    const failedCallsCount = await this.callRunRepository.count({
+      where: {
+        script_id: scriptId,
+        status: In([
+          CallRunStatus.FAILED,
+          CallRunStatus.BUSY,
+          CallRunStatus.NO_ANSWER,
+        ]),
+        ...dateCondition,
+      },
+    });
+
+    const total = successCallsCount + failedCallsCount;
+    const successRate = total > 0 ? (successCallsCount / total) * 100 : 0;
+
+    return {
+      successCallsCount,
+      failedCallsCount,
+      total,
+      successRate, // percentage (0–100)
+    };
+  }
+
+  async getAvgDurationByScript(scriptId: string, period?: number) {
+    let dateCondition = {};
+    if (period) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - period);
+      dateCondition = {
+        created_at: MoreThanOrEqual(startDate),
+      };
+    }
+
+    const totalCompletedCalls = await this.callRunRepository.count({
+      where: {
+        script_id: scriptId,
+        status: CallRunStatus.COMPLETED,
+        ...dateCondition,
+      },
+    });
+
+    if (totalCompletedCalls === 0) {
+      return 0;
+    }
+
+    const result: { totalDuration: string | null } =
+      (await this.callRunRepository
+        .createQueryBuilder('callRun')
+        .select('SUM(callRun.total_duration_seconds)', 'totalDuration')
+        .where('callRun.script_id = :scriptId', { scriptId })
+        .andWhere('callRun.status = :status', {
+          status: CallRunStatus.COMPLETED,
+        })
+        .andWhere(dateCondition)
+        .getRawOne()) ?? { totalDuration: '0' };
+
+    const totalDuration = Number(result.totalDuration || 0);
+
+    return Math.round(totalDuration / totalCompletedCalls);
+  }
 }

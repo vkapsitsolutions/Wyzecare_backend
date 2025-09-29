@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -21,6 +23,7 @@ import { ScriptCategory } from './enums/call-scripts.enum';
 import { AssignCallScriptToPatientsDto } from './dto/assign-script.dto';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { PatientsService } from 'src/patients/patients.service';
+import { CallScriptUtilsService } from './call-scripts-utils.service';
 
 @Injectable()
 export class CallScriptsService {
@@ -33,6 +36,9 @@ export class CallScriptsService {
     private readonly patientsService: PatientsService,
 
     private readonly aiCallingService: AiCallingService,
+
+    @Inject(forwardRef(() => CallScriptUtilsService))
+    private readonly callScriptUtilsService: CallScriptUtilsService,
   ) {}
 
   async checkSlugExists(slug: string, orgId: string, excludeId?: string) {
@@ -103,7 +109,7 @@ export class CallScriptsService {
 
     const qb = this.callScriptRepository
       .createQueryBuilder('script')
-      .leftJoinAndSelect('script.questions', 'questions')
+      // .leftJoinAndSelect('script.questions', 'questions')
       .where('script.organization_id = :orgId', { orgId: organizationId });
 
     if (keyword && String(keyword).trim() !== '') {
@@ -123,6 +129,16 @@ export class CallScriptsService {
     qb.distinct(true).orderBy('script.created_at', 'DESC');
 
     const callScripts = await qb.getMany();
+
+    for (const script of callScripts) {
+      const { avgDuration, successRate } =
+        await this.callScriptUtilsService.getScriptSuccessRateAndAvgDuration(
+          script.id,
+        );
+
+      script.successRatePercent = successRate;
+      script.avgDurationSeconds = avgDuration;
+    }
 
     return {
       success: true,

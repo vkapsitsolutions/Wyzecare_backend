@@ -113,4 +113,9 @@ export class CallScript {
     eager: false,
   })
   questions?: ScriptQuestion[];
+
+  // for display purpose only
+  successRatePercent: number;
+
+  avgDurationSeconds: number;
 }

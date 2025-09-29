@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { CallsService } from './calls.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Call } from './entities/call.entity';
@@ -19,7 +19,7 @@ import { CallMetricsService } from './call-metrics.service';
   imports: [
     TypeOrmModule.forFeature([CallRun, Call, CallSchedule, Patient]),
     ScheduleModule.forRoot(),
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
     RolesModule,
     AiCallingModule,
     AlertsModule,

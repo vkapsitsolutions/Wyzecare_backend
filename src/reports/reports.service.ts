@@ -4,6 +4,7 @@ import { CallMetricsService } from 'src/calls/call-metrics.service';
 import { PatientsService } from 'src/patients/patients.service';
 import { ReportsDashboardCountQueryDto } from './dto/reports-dahsboard-count-query';
 import { GetDailyPerformanceBreakDown } from './dto/daily-performace-query.dto';
+import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
 
 @Injectable()
 export class ReportsService {
@@ -11,6 +12,7 @@ export class ReportsService {
     private readonly alertsMetricsService: AlertMetricsService,
     private readonly patientsService: PatientsService,
     private readonly callMetricsService: CallMetricsService,
+    private readonly callScriptUtilsService: CallScriptUtilsService,
   ) {}
 
   async getOrganizationMetrics(organizationId: string) {
@@ -90,5 +92,20 @@ export class ReportsService {
       );
 
     return dailyPerformanceBreakDown;
+  }
+
+  async getScriptPerformanceMetrics(
+    organizationId: string,
+    query: GetDailyPerformanceBreakDown,
+  ) {
+    const { period } = query;
+
+    const scriptPerformanceMetrics =
+      await this.callScriptUtilsService.getScriptPerformanceMetrics(
+        organizationId,
+        period,
+      );
+
+    return scriptPerformanceMetrics;
   }
 }
