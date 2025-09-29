@@ -159,8 +159,14 @@ export class CallScriptUtilsService {
       const { avgDuration, successRate } =
         await this.getScriptSuccessRateAndAvgDuration(script.id, period);
 
+      const scriptUsage = await this.callMetricsService.getScriptUsage(
+        script.id,
+        period,
+      );
+
       script.successRatePercent = successRate;
       script.avgDurationSeconds = avgDuration;
+      script.usageCount = scriptUsage;
     }
 
     return {
