@@ -118,4 +118,6 @@ export class CallScript {
   successRatePercent: number;
 
   avgDurationSeconds: number;
+
+  usageCount: number;
 }

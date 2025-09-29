@@ -502,4 +502,23 @@ export class CallMetricsService {
 
     return Math.round(totalDuration / totalCompletedCalls);
   }
+
+  async getScriptUsage(scriptId: string, period?: number) {
+    let dateCondition = {};
+    if (period) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - period);
+      dateCondition = {
+        created_at: MoreThanOrEqual(startDate),
+      };
+    }
+
+    const scriptUsage = await this.callRunRepository.count({
+      where: { script_id: scriptId, ...dateCondition },
+    });
+
+    return scriptUsage;
+  }
 }
