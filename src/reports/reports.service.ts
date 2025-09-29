@@ -3,6 +3,7 @@ import { AlertMetricsService } from 'src/alerts/alert-metrics.service';
 import { CallMetricsService } from 'src/calls/call-metrics.service';
 import { PatientsService } from 'src/patients/patients.service';
 import { ReportsDashboardCountQueryDto } from './dto/reports-dahsboard-count-query';
+import { GetDailyPerformanceBreakDown } from './dto/daily-performace-query.dto';
 
 @Injectable()
 export class ReportsService {
@@ -68,5 +69,26 @@ export class ReportsService {
       averageCallDurationSeconds,
       alertCounts,
     };
+  }
+
+  async getMonthlySuccessRate(organizationId: string) {
+    const monthlyCallSuccessRates =
+      await this.callMetricsService.getMonthlyCallSuccessRates(organizationId);
+
+    return monthlyCallSuccessRates;
+  }
+
+  async getDailyPerformanceBreakDown(
+    organizationId: string,
+    dto: GetDailyPerformanceBreakDown,
+  ) {
+    const { period } = dto;
+    const dailyPerformanceBreakDown =
+      await this.callMetricsService.getDailyPerformanceBreakdown(
+        organizationId,
+        period,
+      );
+
+    return dailyPerformanceBreakDown;
   }
 }
