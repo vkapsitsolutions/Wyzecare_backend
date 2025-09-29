@@ -206,4 +206,21 @@ export class AlertMetricsService {
       critical,
     };
   }
+
+  async getDailyAlerts(organizationId: string, startDate: Date, today: Date) {
+    // Alerts for current period
+    const alertQb = this.alertRepository
+      .createQueryBuilder('alert')
+      .select("TO_CHAR(alert.createdAt, 'YYYY-MM-DD')", 'day')
+      .addSelect('COUNT(*)', 'alerts')
+      .where('alert.organization_id = :organizationId', { organizationId })
+      .andWhere('alert.createdAt >= :startDate', { startDate })
+      .andWhere('alert.createdAt < :today', { today })
+      .groupBy('day');
+
+    const alertResults: { day: string; alerts: string }[] =
+      await alertQb.getRawMany();
+
+    return alertResults;
+  }
 }
