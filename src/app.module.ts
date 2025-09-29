@@ -23,6 +23,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { CallSchedulesModule } from './call-schedules/call-schedules.module';
 import { CallsModule } from './calls/calls.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -110,6 +111,8 @@ import { AlertsModule } from './alerts/alerts.module';
     CallsModule,
 
     AlertsModule,
+
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

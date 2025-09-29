@@ -13,6 +13,7 @@ import { CallUtilsService } from './call-utils.service';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { SchedulerService } from './scheduler.service';
 import { AlertsModule } from 'src/alerts/alerts.module';
+import { CallMetricsService } from './call-metrics.service';
 
 @Module({
   imports: [
@@ -23,8 +24,13 @@ import { AlertsModule } from 'src/alerts/alerts.module';
     AiCallingModule,
     AlertsModule,
   ],
-  providers: [CallsService, SchedulerService, CallUtilsService],
+  providers: [
+    CallsService,
+    SchedulerService,
+    CallUtilsService,
+    CallMetricsService,
+  ],
   controllers: [CallsController],
-  exports: [CallsService, CallUtilsService],
+  exports: [CallsService, CallUtilsService, CallMetricsService],
 })
 export class CallsModule {}

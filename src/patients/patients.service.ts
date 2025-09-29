@@ -645,4 +645,14 @@ export class PatientsService {
 
     return patients;
   }
+
+  async getPatientCount(organizationId: string) {
+    const totalCount = await this.patientRepository.count({
+      where: { organization_id: organizationId },
+    });
+
+    return {
+      totalPatients: totalCount,
+    };
+  }
 }

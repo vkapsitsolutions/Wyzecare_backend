@@ -206,6 +206,14 @@ export class AlertsService {
    * Find alerts with pagination and filters.
    * Includes patient relation for display purposes.
    */
+  /**
+   * Find alerts with pagination and filters.
+   * Includes patient relation for display purposes.
+   */
+  /**
+   * Find alerts with pagination and filters.
+   * Includes patient relation for display purposes.
+   */
   async findAlerts(getAlertsDto: GetAlertsDto, loggedInUser: User) {
     const {
       limit,
@@ -296,26 +304,79 @@ export class AlertsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    const activeCount = await this.alertsRepository.count({
-      where: {
-        organization_id: loggedInUser.organization_id,
-        status: AlertStatus.ACTIVE,
-      },
-    });
+    // Base query for counts, restricted by organization and user access if not admin
+    const createCountQb = (status: AlertStatus) => {
+      const countQb = this.alertsRepository
+        .createQueryBuilder('alert')
+        .leftJoin('alert.patient', 'patient')
+        .where('alert.organization_id = :organizationId', {
+          organizationId: loggedInUser.organization_id,
+        })
+        .andWhere('alert.status = :status', { status });
 
-    const resolvedCount = await this.alertsRepository.count({
-      where: {
-        organization_id: loggedInUser.organization_id,
-        status: AlertStatus.RESOLVED,
-      },
-    });
+      if (severity) {
+        countQb.andWhere('alert.severity = :severity', { severity });
+      }
 
-    const acknowledgedCount = await this.alertsRepository.count({
-      where: {
-        organization_id: loggedInUser.organization_id,
-        status: AlertStatus.ACKNOWLEDGED,
-      },
-    });
+      if (keyword) {
+        countQb.andWhere(
+          new Brackets((subQb) => {
+            subQb
+              .where('patient.firstName ILIKE :keyword', {
+                keyword: `%${keyword}%`,
+              })
+              .orWhere('patient.lastName ILIKE :keyword', {
+                keyword: `%${keyword}%`,
+              })
+              .orWhere('alert.alertType ILIKE :keyword', {
+                keyword: `%${keyword}%`,
+              })
+              .orWhere('alert.message ILIKE :keyword', {
+                keyword: `%${keyword}%`,
+              });
+          }),
+        );
+      }
+
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0); // start of the day
+        countQb.andWhere('alert.createdAt >= :startDate', {
+          startDate: start.toISOString(),
+        });
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // end of the day
+        countQb.andWhere('alert.createdAt <= :endDate', {
+          endDate: end.toISOString(),
+        });
+      }
+
+      if (patientId) {
+        countQb.andWhere('alert.patientId = :patientId', { patientId });
+      }
+
+      if (loggedInUser && loggedInUser.role?.slug !== RoleName.ADMINISTRATOR) {
+        countQb.innerJoin(
+          'patient.usersWithAccess',
+          'userAccess',
+          'userAccess.id = :userId',
+          { userId: loggedInUser.id },
+        );
+      }
+
+      return countQb;
+    };
+
+    const activeCount = await createCountQb(AlertStatus.ACTIVE).getCount();
+
+    const resolvedCount = await createCountQb(AlertStatus.RESOLVED).getCount();
+
+    const acknowledgedCount = await createCountQb(
+      AlertStatus.ACKNOWLEDGED,
+    ).getCount();
 
     return {
       success: true,

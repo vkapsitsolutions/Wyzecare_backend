@@ -1,4 +1,12 @@
-import { Not, Repository } from 'typeorm';
+import {
+  Between,
+  FindOperator,
+  FindOptionsWhere,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Not,
+  Repository,
+} from 'typeorm';
 import { Alert, AlertSeverity, AlertStatus } from './entities/alert.entity';
 import { AlertHistory } from './entities/alert-history.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -46,7 +54,15 @@ export class AlertMetricsService {
     const avgResponseTime = parseFloat(row.avg_response_time ?? '') || 0;
     const avgResolveTime = parseFloat(row.avg_resolve_time ?? '') || 0;
 
+    const activeAlertsCount = await this.alertRepository.count({
+      where: {
+        organization_id: organizationId,
+        status: Not(AlertStatus.RESOLVED),
+      },
+    });
+
     return {
+      activeAlertsCount,
       avgResponseTime,
       avgResolveTime,
       avgResponseTimeFormatted: this.formatDuration(avgResponseTime),
@@ -136,6 +152,58 @@ export class AlertMetricsService {
         },
         resolvedAlerts,
       },
+    };
+  }
+
+  async getAlertCountsByDate(
+    organizationId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    let adjustedStart: Date | undefined;
+    let adjustedEnd: Date | undefined;
+
+    if (startDate) {
+      adjustedStart = new Date(startDate);
+      adjustedStart.setHours(0, 0, 0, 0);
+    }
+
+    if (endDate) {
+      adjustedEnd = new Date(endDate);
+      adjustedEnd.setHours(23, 59, 59, 999);
+    }
+
+    let dateCondition: Date | FindOperator<Date> | undefined;
+    if (adjustedStart && adjustedEnd) {
+      dateCondition = Between(adjustedStart, adjustedEnd);
+    } else if (adjustedStart) {
+      dateCondition = MoreThanOrEqual(adjustedStart);
+    } else if (adjustedEnd) {
+      dateCondition = LessThanOrEqual(adjustedEnd);
+    }
+
+    const baseWhere: FindOptionsWhere<Alert> = {
+      organization_id: organizationId,
+    };
+
+    if (dateCondition) {
+      baseWhere.createdAt = dateCondition;
+    }
+
+    const totalGenerated = await this.alertRepository.count({
+      where: baseWhere,
+    });
+
+    const critical = await this.alertRepository.count({
+      where: {
+        ...baseWhere,
+        status: AlertStatus.ACTIVE,
+      },
+    });
+
+    return {
+      totalGenerated,
+      critical,
     };
   }
 }
