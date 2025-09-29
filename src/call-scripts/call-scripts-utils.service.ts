@@ -8,6 +8,7 @@ import slugify from 'slugify';
 import { CallScriptsService } from './call-scripts.service';
 import { PatientsService } from 'src/patients/patients.service';
 import { Patient } from 'src/patients/entities/patient.entity';
+import { CallMetricsService } from 'src/calls/call-metrics.service';
 
 @Injectable()
 export class CallScriptUtilsService {
@@ -21,6 +22,8 @@ export class CallScriptUtilsService {
     private readonly callScriptService: CallScriptsService,
 
     private readonly patientsService: PatientsService,
+
+    private readonly callMetricsService: CallMetricsService,
   ) {}
 
   async createDefaultScriptsForOrganization(organizationId: string): Promise<{
@@ -118,5 +121,52 @@ export class CallScriptUtilsService {
     }
 
     return { success: true };
+  }
+
+  async getScriptSuccessRateAndAvgDuration(scriptId: string, period?: number) {
+    const callScript = await this.callScriptRepository.findOne({
+      where: { id: scriptId },
+    });
+
+    if (!callScript) {
+      return {
+        successRate: 0,
+        avgDuration: 0,
+      };
+    }
+
+    const { successRate } =
+      await this.callMetricsService.getCallSuccessRatesByScript(
+        scriptId,
+        period,
+      );
+
+    const avgDuration = await this.callMetricsService.getAvgDurationByScript(
+      scriptId,
+      period,
+    );
+
+    return { successRate, avgDuration };
+  }
+
+  async getScriptPerformanceMetrics(organizationId: string, period?: number) {
+    const scripts = await this.callScriptRepository.find({
+      where: { organization_id: organizationId },
+      order: { created_at: 'DESC' },
+    });
+
+    for (const script of scripts) {
+      const { avgDuration, successRate } =
+        await this.getScriptSuccessRateAndAvgDuration(script.id, period);
+
+      script.successRatePercent = successRate;
+      script.avgDurationSeconds = avgDuration;
+    }
+
+    return {
+      success: true,
+      message: 'Script performance metrics fetched',
+      scripts,
+    };
   }
 }
