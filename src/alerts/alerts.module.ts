@@ -16,6 +16,6 @@ import { AlertMetricsService } from './alert-metrics.service';
   ],
   providers: [AlertsService, AlertMetricsService],
   controllers: [AlertsController],
-  exports: [AlertsService],
+  exports: [AlertsService, AlertMetricsService],
 })
 export class AlertsModule {}
