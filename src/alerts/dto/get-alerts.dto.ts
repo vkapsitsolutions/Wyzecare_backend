@@ -1,4 +1,4 @@
-import { PaginationQueryDto } from 'src/common/dto/pagnination-query.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { AlertSeverity, AlertStatus } from '../entities/alert.entity';
 import { Type } from 'class-transformer';
 import { IsDate, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';

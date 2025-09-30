@@ -70,6 +70,9 @@ export class CallRun {
   @Column({ name: 'total_duration_seconds', type: 'int', nullable: true })
   total_duration_seconds?: number;
 
+  @Column({ name: 'wellness_score', type: 'int', nullable: true })
+  wellness_score: number;
+
   @OneToMany(() => Call, (call) => call.call_run)
   calls: Call[];
 

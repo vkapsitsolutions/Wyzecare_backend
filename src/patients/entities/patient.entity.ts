@@ -25,6 +25,8 @@ import { PrivacyPreferences } from 'src/patient-consents/entites/privacy-prefere
 import { TelehealthConsent } from 'src/patient-consents/entites/telehealth-consent.entity';
 import { CallSchedule } from 'src/call-schedules/entities/call-schedule.entity';
 import { CallScript } from 'src/call-scripts/entities/call-script.entity';
+import { CallRun } from 'src/calls/entities/call-runs.entity';
+import { Alert } from 'src/alerts/entities/alert.entity';
 
 export enum WellnessStatusEnum {
   GOOD = 'GOOD',
@@ -235,4 +237,10 @@ export class Patient {
     (telehealthConsent) => telehealthConsent.patient,
   )
   telehealthConsent: TelehealthConsent;
+
+  @OneToMany(() => CallRun, (callRun) => callRun.patient)
+  callRuns: CallRun[];
+
+  @OneToMany(() => Alert, (alert) => alert.patient)
+  alerts: Alert[];
 }

@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
-import { PaginationQueryDto } from 'src/common/dto/pagnination-query.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { ScheduleStatus } from '../enums/call-schedule.enum';
 
 export class GetCallSchedulesQuery extends PaginationQueryDto {
