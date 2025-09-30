@@ -10,8 +10,9 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { User } from 'src/users/entities/user.entity';
-import { ReportsDashboardCountQueryDto } from './dto/reports-dahsboard-count-query';
-import { GetDailyPerformanceBreakDown } from './dto/daily-performace-query.dto';
+import { ReportsDashboardCountQueryDto } from './dto/reports-dashboard-count-query';
+import { GetDailyPerformanceBreakDown } from './dto/daily-performance-query.dto';
+import { PatientEngagementDto } from './dto/patient-engagement.dto';
 
 @Controller('reports')
 export class ReportsController {
@@ -77,6 +78,21 @@ export class ReportsController {
     return this.reportsService.getScriptPerformanceMetrics(
       user.organization_id,
       query,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @Get('patient-engagement')
+  patientEngagement(
+    @CurrentUser() user: User,
+    @Query() patientEngagementDto: PatientEngagementDto,
+  ) {
+    if (!user.organization_id) {
+      throw new BadRequestException('User not belongs to any organization');
+    }
+    return this.reportsService.getPatientEngagement(
+      patientEngagementDto,
+      user.organization_id,
     );
   }
 }

@@ -11,6 +11,7 @@ import { User } from 'src/users/entities/user.entity';
 import { PatientAccessController } from './patient-access.controller';
 import { UploadsModule } from 'src/uploads/uploads.module';
 import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
+import { PatientMetricsService } from './patient-metrics.service';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
     forwardRef(() => CallScriptsModule),
   ],
   controllers: [PatientsController, PatientAccessController],
-  providers: [PatientsService, PatientAccessService],
-  exports: [PatientsService, PatientAccessService],
+  providers: [PatientsService, PatientAccessService, PatientMetricsService],
+  exports: [PatientsService, PatientAccessService, PatientMetricsService],
 })
 export class PatientsModule {}
