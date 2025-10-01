@@ -61,7 +61,7 @@ export class Patient {
     unique: true,
     nullable: true,
   })
-  patientId: string;
+  patientId: string | null;
 
   @Column({ name: 'first_name', type: 'varchar', length: 255, nullable: false })
   firstName!: string;
