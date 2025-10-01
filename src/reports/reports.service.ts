@@ -122,8 +122,6 @@ export class ReportsService {
     const {
       page,
       limit,
-      // sortBy,
-      // sortDir,
       startDate: startInput,
       endDate: endInput,
     } = patientEngagementDto;
@@ -156,8 +154,6 @@ export class ReportsService {
     const rawResults: PatientEngagementRaw[] = await qb.getRawMany();
     const total = await qb.getCount(); // For totalPatients
 
-    console.log('rawResults :>> ', rawResults);
-
     // Post-process raw results to format as needed
     const patients = rawResults.map((r) => ({
       patientName: r.patient_name,
@@ -165,7 +161,10 @@ export class ReportsService {
         r.scheduledCalls > 0
           ? `${r.completedCalls}/${r.scheduledCalls}`
           : '0/0',
-      engagement: Math.round(r.engagement || 0),
+      engagement:
+        r.scheduledCalls > 0
+          ? Math.round((r.completedCalls / r.scheduledCalls) * 100)
+          : 0,
       avgWellness: r.avgWellness ? `${Math.round(r.avgWellness)}/5` : '-',
       alert:
         r.maxSeverity === 3

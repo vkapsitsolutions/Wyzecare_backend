@@ -22,7 +22,8 @@ export class CreatePatientDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(5)
-  patientId: string;
+  @IsOptional()
+  patientId?: string;
 
   @IsString()
   @IsNotEmpty()

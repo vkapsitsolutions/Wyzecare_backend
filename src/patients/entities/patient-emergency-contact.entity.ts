@@ -10,10 +10,12 @@ import {
 import { Patient } from './patient.entity';
 
 export enum RelationshipEnum {
-  PARENT = 'parent',
-  DAUGHTER = 'daughter',
-  SON = 'son',
+  PARTNER_SPOUSE = 'partner_spouse',
+  CHILD = 'child',
+  GRANDCHILD = 'grandchild',
+  FRIEND = 'friend',
   SIBLING = 'sibling',
+  CAREGIVER = 'caregiver',
   OTHER = 'other',
 }
 
@@ -39,6 +41,7 @@ export class PatientEmergencyContact {
     name: 'relationship',
     type: 'enum',
     enum: RelationshipEnum,
+    default: RelationshipEnum.OTHER,
     nullable: true,
   })
   relationship?: RelationshipEnum;

@@ -94,8 +94,9 @@ export class CallsService {
   /**
    * Mark a call run as completed and schedule next occurrence if needed
    */
-  async completeCallRun(callRun: CallRun) {
+  async completeCallRun(callRun: CallRun, wellnessRating?: number) {
     callRun.status = CallRunStatus.COMPLETED;
+    callRun.wellness_score = wellnessRating; // update the wellness score of the call
     await this.callRunRepository.save(callRun);
 
     // If this was from a recurring schedule, create next occurrence
@@ -300,10 +301,13 @@ export class CallsService {
     await this.callRepository.save(call);
 
     // Update call run from call result
-    await this.updateCallRunFromCallResult(call);
+    await this.updateCallRunFromCallResult(call, callData.wellness_rating);
   }
 
-  private async updateCallRunFromCallResult(call: Call) {
+  private async updateCallRunFromCallResult(
+    call: Call,
+    wellnessRating?: number,
+  ) {
     if (!call.call_run_id) return;
 
     const callRun = await this.callRunRepository.findOne({
@@ -317,7 +321,7 @@ export class CallsService {
     if (call.status === CallStatus.ENDED) {
       // Call completed successfully
       callRun.total_duration_seconds = call.duration_seconds;
-      await this.completeCallRun(callRun);
+      await this.completeCallRun(callRun, wellnessRating); // wellness rating
     } else if (call.status === CallStatus.NOT_CONNECTED) {
       // Handle different types of non-connection
       const reason = call.failure_reason?.toLowerCase() || '';
