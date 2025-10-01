@@ -236,7 +236,13 @@ export class PatientsService {
       // Apply only provided fields
       if (firstName !== undefined) patient.firstName = firstName;
       if (lastName !== undefined) patient.lastName = lastName;
-      if (patientId !== undefined) patient.patientId = patientId;
+      if (patientId === '') {
+        patient.patientId = null;
+      } else if (patientId !== undefined) {
+        patient.patientId = patientId;
+      } else {
+        // patient.patientId = patient.patientId;
+      }
       if (dateOfBirth !== undefined) patient.dateOfBirth = dateOfBirth;
       if (gender !== undefined) patient.gender = gender;
       if (preferredName !== undefined) patient.preferredName = preferredName;
@@ -277,7 +283,7 @@ export class PatientsService {
       organization_id: organizationId,
       firstName,
       lastName,
-      patientId,
+      patientId: patientId ? patientId : null,
       preferredName,
       dateOfBirth,
       gender,
