@@ -2,7 +2,7 @@ import { Type } from 'class-transformer';
 import { IsDate, IsEnum, IsOptional } from 'class-validator';
 import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 
-enum SortBy {
+export enum SortBy {
   PATIENT_NAME = 'patientName',
   CALLS = 'calls',
   ENGAGEMENT = 'engagement',
@@ -12,7 +12,7 @@ enum SortBy {
   LAST_CALL = 'lastCall',
 }
 
-enum SortDir {
+export enum SortDir {
   ASC = 'ASC',
   DESC = 'DESC',
 }

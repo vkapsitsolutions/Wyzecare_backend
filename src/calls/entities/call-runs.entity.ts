@@ -71,7 +71,7 @@ export class CallRun {
   total_duration_seconds?: number;
 
   @Column({ name: 'wellness_score', type: 'int', nullable: true })
-  wellness_score: number;
+  wellness_score?: number;
 
   @OneToMany(() => Call, (call) => call.call_run)
   calls: Call[];

@@ -74,6 +74,7 @@ export interface CallPayload {
   recording_url?: string | null;
   opt_out_sensitive_data_storage?: boolean;
   call_analysis?: Record<string, string>;
+  wellness_rating?: number;
   [key: string]: any; // allow future fields
 }
 

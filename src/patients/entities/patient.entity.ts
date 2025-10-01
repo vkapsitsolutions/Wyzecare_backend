@@ -54,8 +54,14 @@ export class Patient {
   @JoinColumn({ name: 'organization_id' })
   organization?: Organization;
 
-  @Column({ name: 'patient_id', type: 'varchar', length: 100, unique: true })
-  patientId!: string;
+  @Column({
+    name: 'patient_id',
+    type: 'varchar',
+    length: 100,
+    unique: true,
+    nullable: true,
+  })
+  patientId: string;
 
   @Column({ name: 'first_name', type: 'varchar', length: 255, nullable: false })
   firstName!: string;
