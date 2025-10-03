@@ -137,7 +137,7 @@ export class SeederService implements OnModuleInit {
           'Script builder with ready-made scripts',
           '1 admin + 5 users allowed',
           'Recording history 30 days',
-          'Ad-supported discounts in the future',
+          // 'Ad-supported discounts in the future',
         ],
         is_active: true,
       },
