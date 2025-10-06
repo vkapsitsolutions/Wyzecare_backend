@@ -365,7 +365,8 @@ export class CallMetricsService {
 
     // Generate days (most recent first)
     type DayPerformance = {
-      label: string;
+      date: string;
+      day: string;
       successful: number;
       failed: number;
       total: number;
@@ -378,10 +379,7 @@ export class CallMetricsService {
       const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
       const dayKey = date.toISOString().slice(0, 10);
       const weekday = date.toLocaleString('default', { weekday: 'long' });
-      const month = date.getMonth() + 1;
-      const dayNum = date.getDate();
-      const year = date.getFullYear();
-      const label = `${weekday} - ${month}/${dayNum}/${year}`;
+      const dateString = date.toLocaleDateString();
 
       const counts = callDataMap.get(dayKey) || {
         successful: 0,
@@ -398,7 +396,8 @@ export class CallMetricsService {
       const alerts = alertMap.get(dayKey) || 0;
 
       days.push({
-        label,
+        date: dateString,
+        day: weekday,
         successful: counts.successful,
         failed: counts.failed,
         total,
