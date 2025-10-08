@@ -68,7 +68,10 @@ import { ReportsModule } from './reports/reports.module';
         AWS_BUCKET_REGION: Joi.string().required(),
         CALLING_SERVICE_URI: Joi.string().required(),
         CALLING_SERVICE_TOKEN: Joi.string().required(),
-        // WEBHOOK_SECRET: Joi.string().required(),
+        WEBHOOK_SECRET: Joi.string().required(),
+        STRIPE_SECRET_KEY: Joi.string().required(),
+        STRIPE_MONTHLY_PRICE_ID: Joi.string().required(),
+        STRIPE_WEBHOOK_SECRET: Joi.string().required(),
       }),
     }),
 

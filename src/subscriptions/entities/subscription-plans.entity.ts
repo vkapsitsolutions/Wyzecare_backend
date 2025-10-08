@@ -61,6 +61,20 @@ export class SubscriptionPlan {
   price_yearly?: number | null;
 
   @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  stripe_monthly_price_id?: string | null;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  stripe_yearly_price_id?: string | null;
+
+  @Column({
     type: 'int',
     nullable: true,
   })
