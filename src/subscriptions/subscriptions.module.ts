@@ -10,6 +10,7 @@ import { RolesModule } from 'src/roles/roles.module';
 import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { PaymentHistory } from './entities/payment-history.entity';
 import { PaymentWebhooksService } from './payment-webhooks.service';
+import { CallSchedulesModule } from 'src/call-schedules/call-schedules.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PaymentWebhooksService } from './payment-webhooks.service';
     forwardRef(() => UsersModule),
     RolesModule,
     CallScriptsModule,
+    CallSchedulesModule,
   ],
   providers: [SubscriptionsService, PaymentWebhooksService],
   controllers: [SubscriptionsController],

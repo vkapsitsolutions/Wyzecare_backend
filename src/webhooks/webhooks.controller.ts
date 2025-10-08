@@ -49,8 +49,8 @@ export class WebhooksController {
   }
 
   @Post('stripe')
-  @HttpCode(200)
-  handleWebhookEvent(
+  @HttpCode(HttpStatus.OK)
+  async handleWebhookEvent(
     @Req() req: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string,
   ) {
@@ -58,6 +58,8 @@ export class WebhooksController {
     if (!raw) {
       throw new Error('Raw body is missing from the request');
     }
-    return this.paymentWebhooksService.handleWebhookEvent(raw, signature);
+    await this.paymentWebhooksService.handleWebhookEvent(raw, signature);
+
+    return { ok: true };
   }
 }

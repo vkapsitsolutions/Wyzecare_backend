@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { CallSchedulesService } from './call-schedules.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CallSchedule } from './entities/call-schedule.entity';
@@ -13,7 +13,7 @@ import { CallRun } from 'src/calls/entities/call-runs.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([CallSchedule, CallRun]),
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
     PatientsModule,
     CallScriptsModule,
     CallsModule,
@@ -22,5 +22,6 @@ import { CallRun } from 'src/calls/entities/call-runs.entity';
   ],
   providers: [CallSchedulesService],
   controllers: [CallSchedulesController],
+  exports: [CallSchedulesService],
 })
 export class CallSchedulesModule {}
