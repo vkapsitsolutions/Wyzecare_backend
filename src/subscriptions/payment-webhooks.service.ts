@@ -11,6 +11,7 @@ import {
   PaymentStatusEnum,
 } from '../subscriptions/entities/payment-history.entity'; // Adjust path if needed
 import { ConfigService } from '@nestjs/config';
+import { CallSchedulesService } from 'src/call-schedules/call-schedules.service';
 
 @Injectable()
 export class PaymentWebhooksService {
@@ -23,6 +24,8 @@ export class PaymentWebhooksService {
     private orgSubscriptionsRepo: Repository<OrganizationSubscription>,
     @InjectRepository(PaymentHistory)
     private paymentHistoryRepo: Repository<PaymentHistory>,
+
+    private readonly callScheduleService: CallSchedulesService,
   ) {
     this.stripe = new Stripe(
       this.configService.getOrThrow<string>('STRIPE_SECRET_KEY'),
@@ -184,6 +187,15 @@ export class PaymentWebhooksService {
     sub.auto_renew = !stripeSub.cancel_at_period_end;
 
     sub.stripe_subscription_id = stripeSub.id;
+
+    // handle active schedules as per the subscription status
+    if (sub.status === SubscriptionStatusEnum.ACTIVE) {
+      await this.callScheduleService.activatePausedSchedules(
+        sub.organization_id,
+      );
+    } else {
+      await this.callScheduleService.pauseActiveSchedules(sub.organization_id);
+    }
 
     await this.orgSubscriptionsRepo.save(sub);
   }

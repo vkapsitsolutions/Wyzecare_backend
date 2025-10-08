@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -47,6 +48,7 @@ export interface GetSchedulesResponse {
 
 @Injectable()
 export class CallSchedulesService {
+  private readonly logger = new Logger(CallSchedulesService.name);
   constructor(
     @InjectRepository(CallSchedule)
     private readonly callScheduleRepository: Repository<CallSchedule>,
@@ -761,6 +763,57 @@ export class CallSchedulesService {
           updatedAt: schedule.updated_at,
         };
       }),
+    );
+  }
+
+  // for pausing active schedules for unsubscribed users
+  async pauseActiveSchedules(organizationId: string) {
+    const activeSchedulesForOrg = await this.callScheduleRepository.find({
+      where: { organization_id: organizationId, status: ScheduleStatus.ACTIVE },
+    });
+
+    for (const schedule of activeSchedulesForOrg) {
+      schedule.status = ScheduleStatus.PAUSED;
+
+      schedule.next_scheduled_at = null;
+
+      await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
+
+      await this.callScheduleRepository.save(schedule);
+    }
+
+    this.logger.log(
+      `Paused active schedules for organization id: ${organizationId}`,
+    );
+  }
+
+  async activatePausedSchedules(organizationId: string) {
+    const pausedSchedulesForOrganization =
+      await this.callScheduleRepository.find({
+        where: {
+          organization_id: organizationId,
+          status: ScheduleStatus.PAUSED,
+        },
+      });
+
+    for (const schedule of pausedSchedulesForOrganization) {
+      schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
+      schedule.status = ScheduleStatus.ACTIVE;
+
+      await this.callScheduleRepository.save(schedule);
+
+      await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
+
+      if (
+        schedule.status === ScheduleStatus.ACTIVE &&
+        schedule.next_scheduled_at
+      ) {
+        await this.callsService.createCallRunFromSchedule(schedule);
+      }
+    }
+
+    this.logger.log(
+      `Activated schedules for organization id: ${organizationId} on subscription activation`,
     );
   }
 }
