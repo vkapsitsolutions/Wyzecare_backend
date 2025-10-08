@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -44,5 +45,14 @@ export class SubscriptionsController {
     @Param('planId', ParseUUIDPipe) planId: string,
   ) {
     return this.subscriptionsService.purchaseSubscription(user, planId);
+  }
+
+  @Get('manage-subscription/customer-portal')
+  @UseGuards(JwtAuthGuard)
+  manageSubscriptions(@CurrentUser() user: User) {
+    const organizationId = user.organization_id;
+    if (!organizationId)
+      throw new BadRequestException('User do not belongs to any organization');
+    return this.subscriptionsService.getCustomerPortalUrl(organizationId);
   }
 }
