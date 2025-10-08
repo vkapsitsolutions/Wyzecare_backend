@@ -6,7 +6,6 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
-  RelationId,
 } from 'typeorm';
 import { OrganizationSubscription } from './organization-subscription.entity';
 
@@ -31,7 +30,7 @@ export class PaymentHistory {
   @JoinColumn({ name: 'organization_id' })
   organization!: Organization;
 
-  @RelationId((ph: PaymentHistory) => ph.organization)
+  @Column({ name: 'organization_id' })
   organization_id!: string;
 
   @ManyToOne(() => OrganizationSubscription, {
@@ -41,7 +40,7 @@ export class PaymentHistory {
   @JoinColumn({ name: 'organization_subscription_id' })
   organization_subscription!: OrganizationSubscription;
 
-  @RelationId((ph: PaymentHistory) => ph.organization_subscription)
+  @Column({ name: 'organization_subscription_id' })
   organization_subscription_id!: string;
 
   @Column({

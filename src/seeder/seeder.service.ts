@@ -115,11 +115,16 @@ export class SeederService implements OnModuleInit {
   }
 
   private async seedSubscriptionPlansIfNotExists() {
+    const monthlyPriceId = this.configService.get<string>(
+      'STRIPE_MONTHLY_PRICE_ID',
+    );
     const seeds: Partial<SubscriptionPlan>[] = [
       {
         name: 'Care Plus Plan',
         slug: 'care-plus',
         plan_type: PlanTypeEnum.CARE_PLUS,
+        stripe_monthly_price_id: monthlyPriceId,
+        stripe_yearly_price_id: null,
         price_monthly: 49.99,
         price_yearly: null,
         max_patients: null,
@@ -188,7 +193,9 @@ export class SeederService implements OnModuleInit {
           exists.recording_history_days !== seed.recording_history_days ||
           exists.ad_supported_discounts !== seed.ad_supported_discounts ||
           !arraysEqualIgnoreOrder(exists.features ?? [], seed.features ?? []) ||
-          exists.is_active !== seed.is_active;
+          exists.is_active !== seed.is_active ||
+          exists.stripe_monthly_price_id !== seed.stripe_monthly_price_id ||
+          exists.stripe_yearly_price_id !== seed.stripe_yearly_price_id;
         if (needUpdate) {
           exists.name = seed.name ?? exists.name;
           exists.plan_type = seed.plan_type ?? exists.plan_type;
@@ -211,6 +218,10 @@ export class SeederService implements OnModuleInit {
             seed.ad_supported_discounts ?? exists.ad_supported_discounts;
           exists.features = seed.features ?? exists.features;
           exists.is_active = seed.is_active ?? exists.is_active;
+          exists.stripe_monthly_price_id =
+            seed.stripe_monthly_price_id ?? exists.stripe_monthly_price_id;
+          exists.stripe_yearly_price_id =
+            seed.stripe_yearly_price_id ?? exists.stripe_yearly_price_id;
           await this.subscriptionPlanRepo.save(exists);
           this.logger.log(`Updated subscription plan seed: ${seed.slug}`);
         }

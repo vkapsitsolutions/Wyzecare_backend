@@ -7,7 +7,6 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  RelationId,
 } from 'typeorm';
 import { SubscriptionPlan } from './subscription-plans.entity';
 
@@ -18,6 +17,7 @@ export enum SubscriptionStatusEnum {
   PAST_DUE = 'past_due',
   TRIALING = 'trialing',
   PAUSED = 'paused',
+  PENDING = 'pending',
 }
 
 export enum BillingCycleEnum {
@@ -34,14 +34,14 @@ export class OrganizationSubscription {
   @JoinColumn({ name: 'organization_id' })
   organization!: Organization;
 
-  @RelationId((os: OrganizationSubscription) => os.organization)
+  @Column({ name: 'organization_id' })
   organization_id!: string;
 
   @ManyToOne(() => SubscriptionPlan, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'subscription_plan_id' })
   subscription_plan!: SubscriptionPlan;
 
-  @RelationId((os: OrganizationSubscription) => os.subscription_plan)
+  @Column({ name: 'subscription_plan_id' })
   subscription_plan_id!: string;
 
   @Column({

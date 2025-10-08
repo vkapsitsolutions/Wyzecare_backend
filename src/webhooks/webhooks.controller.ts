@@ -6,16 +6,23 @@ import {
   HttpStatus,
   Logger,
   UseGuards,
+  RawBodyRequest,
+  Req,
+  Headers,
 } from '@nestjs/common';
 import type { CallWebhookPayload } from './types/webhooks-payload';
 import { WebhooksService } from './webhooks.service';
 import { WebhookSecretGuard } from './guards/webhooks.guard';
 import { AlertWebhookPayload } from './types/alert-webhook-payload';
+import { PaymentWebhooksService } from 'src/subscriptions/payment-webhooks.service';
 
 @Controller('webhooks')
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
-  constructor(private readonly webhooksService: WebhooksService) {}
+  constructor(
+    private readonly webhooksService: WebhooksService,
+    private readonly paymentWebhooksService: PaymentWebhooksService,
+  ) {}
 
   @UseGuards(WebhookSecretGuard)
   @Post('call-event')
@@ -39,5 +46,18 @@ export class WebhooksController {
     await this.webhooksService.handleAlertWebhooks(payload);
 
     return { ok: true };
+  }
+
+  @Post('stripe')
+  @HttpCode(200)
+  handleWebhookEvent(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    const raw = req.rawBody;
+    if (!raw) {
+      throw new Error('Raw body is missing from the request');
+    }
+    return this.paymentWebhooksService.handleWebhookEvent(raw, signature);
   }
 }
