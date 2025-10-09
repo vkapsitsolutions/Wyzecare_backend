@@ -26,6 +26,6 @@ import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
   ],
   controllers: [UsersController, UserInvitationsController],
   providers: [UsersService, UserUtilsService, UserInvitationsService],
-  exports: [UserUtilsService],
+  exports: [UserUtilsService, UsersService],
 })
 export class UsersModule {}
