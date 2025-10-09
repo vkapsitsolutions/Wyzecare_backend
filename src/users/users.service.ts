@@ -33,6 +33,8 @@ import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { EditUserDto } from './dto/edit-user.dto';
 import { RolesService } from 'src/roles/roles.service';
+import axios from 'axios';
+import { Readable } from 'stream';
 
 @Injectable()
 export class UsersService {
@@ -122,6 +124,68 @@ export class UsersService {
         throw new ConflictException('User already exists');
       }
 
+      throw err;
+    }
+  }
+
+  async findOrCreateSocialUser(createSocialDto: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    photo?: string;
+  }) {
+    const { email, firstName, lastName, photo } = createSocialDto;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const userExists = await this.userRepository.findOne({
+      where: { email },
+      withDeleted: true,
+    });
+    if (userExists) {
+      // if exists, return the existing user to be able to login
+
+      userExists.last_login = new Date();
+
+      await this.userRepository.save(userExists);
+
+      return userExists;
+    }
+    let photoKey: string | null = null;
+
+    if (photo) {
+      photoKey = await this.handlePhotoUpload(photo);
+    }
+
+    // No verification needed for Google – assume verified
+    try {
+      const savedUser = await this.userRepository.manager.transaction(
+        async (manager) => {
+          const userRepo = manager.getRepository(User);
+
+          const newUser = userRepo.create({
+            first_name: firstName,
+            last_name: lastName,
+            email: normalizedEmail,
+            email_verified: true,
+            login_provider: LOGIN_PROVIDER.GOOGLE,
+            photo: photoKey ?? undefined,
+            last_login: new Date(),
+          });
+
+          return await userRepo.save(newUser);
+        },
+      );
+
+      return savedUser;
+    } catch (err: unknown) {
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === '23505'
+      ) {
+        throw new ConflictException('User already exists');
+      }
       throw err;
     }
   }
@@ -533,5 +597,39 @@ export class UsersService {
       message: 'User deleted successfully',
       user,
     };
+  }
+
+  private async handlePhotoUpload(photoUrl: string): Promise<string | null> {
+    try {
+      const response = await axios.get<Buffer>(photoUrl, {
+        responseType: 'arraybuffer',
+      });
+
+      const fileBuffer = Buffer.from(response.data);
+      const mimeType: string =
+        (response.headers['content-type'] as string) || 'image/jpeg';
+      const key = `users/${randomUUID()}.${mimeType.split('/')[1]}`;
+
+      // Mock the Express.Multer.File structure
+      const file: Express.Multer.File = {
+        fieldname: 'photo',
+        originalname: key,
+        encoding: '7bit',
+        mimetype: mimeType,
+        buffer: fileBuffer,
+        size: fileBuffer.length,
+        stream: Readable.from(fileBuffer),
+        destination: '',
+        filename: key,
+        path: '',
+      };
+
+      await this.uploadsService.uploadFile(file, key);
+
+      return key;
+    } catch (error) {
+      this.logger.error(`Failed to process photo: ${error}`);
+      return null;
+    }
   }
 }
