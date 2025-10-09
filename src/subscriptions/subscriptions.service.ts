@@ -26,6 +26,7 @@ export class SubscriptionsService {
   private stripe: Stripe;
   private stripeSecretKey: string;
   private frontendUrl: string;
+  private readonly stripeDiscountId: string | undefined;
 
   private readonly logger = new Logger(SubscriptionsService.name);
 
@@ -43,11 +44,14 @@ export class SubscriptionsService {
     private readonly configService: ConfigService,
   ) {
     this.stripeSecretKey =
-      configService.getOrThrow<string>('STRIPE_SECRET_KEY');
+      this.configService.getOrThrow<string>('STRIPE_SECRET_KEY');
 
-    this.frontendUrl = configService.getOrThrow<string>('FRONTEND_URL');
+    this.frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
 
     this.stripe = new Stripe(this.stripeSecretKey);
+
+    this.stripeDiscountId =
+      this.configService.get<string>('STRIPE_DISCOUNT_ID');
   }
 
   async findAll() {
@@ -120,14 +124,14 @@ export class SubscriptionsService {
     await this.userUtilsService.assignRole(loggedInUser, adminRole);
 
     // Create Stripe customer if not exists (assuming one per subscription for simplicity)
-    const pendingExists = await this.orgSubscriptionsRepo.findOne({
-      where: {
-        organization_id: organization.id,
-        subscription_plan_id: plan.id,
-        status: SubscriptionStatusEnum.PENDING,
-      },
-    });
-    let stripeCustomerId = pendingExists?.stripe_customer_id;
+    // const pendingExists = await this.orgSubscriptionsRepo.findOne({
+    //   where: {
+    //     organization_id: organization.id,
+    //     subscription_plan_id: plan.id,
+    //     status: SubscriptionStatusEnum.PENDING,
+    //   },
+    // });
+    let stripeCustomerId = organization.stripe_customer_id;
     if (!stripeCustomerId) {
       const customer = await this.stripe.customers.create({
         email: loggedInUser.email, // Assume User has email
@@ -137,6 +141,11 @@ export class SubscriptionsService {
       });
       stripeCustomerId = customer.id;
     }
+
+    await this.organizationsService.setStripeCustomer(
+      organization,
+      stripeCustomerId,
+    );
 
     // Check for existing pending/paused subscription for this org and plan
     let subscription = await this.orgSubscriptionsRepo.findOne({
@@ -171,9 +180,14 @@ export class SubscriptionsService {
       );
       subscription.billing_cycle = BillingCycleEnum.MONTHLY;
       subscription.auto_renew = true;
-      // Do not update status or stripe_subscription_id here
     }
     await this.orgSubscriptionsRepo.save(subscription);
+
+    const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
+
+    if (this.stripeDiscountId) {
+      discounts.push({ coupon: this.stripeDiscountId });
+    }
 
     // Create Checkout session
     const session = await this.stripe.checkout.sessions.create({
@@ -186,6 +200,7 @@ export class SubscriptionsService {
           quantity: 1,
         },
       ],
+      discounts: discounts,
       success_url: `${this.frontendUrl}/subscription/success`, // Replace
       cancel_url: `${this.frontendUrl}/subscription/cancel`, // Replace
       metadata: { organization_id: organization.id }, // For webhook reference if needed

@@ -30,7 +30,11 @@ export class OrganizationSubscription {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id!: string;
 
-  @ManyToOne(() => Organization, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Organization, {
+    nullable: false,
+    onDelete: 'CASCADE',
+    cascade: true,
+  })
   @JoinColumn({ name: 'organization_id' })
   organization!: Organization;
 
