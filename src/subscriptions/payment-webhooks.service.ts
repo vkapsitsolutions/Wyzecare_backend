@@ -6,10 +6,6 @@ import {
   OrganizationSubscription,
   SubscriptionStatusEnum,
 } from '../subscriptions/entities/organization-subscription.entity';
-import {
-  PaymentHistory,
-  PaymentStatusEnum,
-} from '../subscriptions/entities/payment-history.entity'; // Adjust path if needed
 import { ConfigService } from '@nestjs/config';
 import { CallSchedulesService } from 'src/call-schedules/call-schedules.service';
 
@@ -22,8 +18,6 @@ export class PaymentWebhooksService {
     private configService: ConfigService,
     @InjectRepository(OrganizationSubscription)
     private orgSubscriptionsRepo: Repository<OrganizationSubscription>,
-    @InjectRepository(PaymentHistory)
-    private paymentHistoryRepo: Repository<PaymentHistory>,
 
     private readonly callScheduleService: CallSchedulesService,
   ) {
@@ -80,38 +74,6 @@ export class PaymentWebhooksService {
         break;
       }
 
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object;
-        await this.createPaymentHistory(invoice);
-        // Update subscription for renewals
-        const subscriptionId = invoice.parent?.subscription_details
-          ?.subscription as string | undefined;
-        if (subscriptionId) {
-          const subscription =
-            await this.stripe.subscriptions.retrieve(subscriptionId);
-          await this.updateSubscriptionInDb(subscription);
-        }
-        break;
-      }
-
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object;
-        await this.createPaymentHistory(invoice, true);
-        // Update status
-        const subscriptionId = invoice.parent?.subscription_details
-          ?.subscription as string | undefined;
-        if (subscriptionId) {
-          const sub = await this.orgSubscriptionsRepo.findOne({
-            where: { stripe_subscription_id: subscriptionId },
-          });
-          if (sub) {
-            sub.status = SubscriptionStatusEnum.PAST_DUE;
-            await this.orgSubscriptionsRepo.save(sub);
-          }
-        }
-        break;
-      }
-
       default:
         this.logger.warn(`Unhandled event type: ${event.type}`);
     }
@@ -124,6 +86,7 @@ export class PaymentWebhooksService {
     let sub = await this.orgSubscriptionsRepo.findOne({
       where: { stripe_subscription_id: stripeSub.id },
       relations: ['organization', 'subscription_plan'],
+      order: { created_at: 'DESC' },
     });
 
     if (!sub) {
@@ -132,6 +95,7 @@ export class PaymentWebhooksService {
       sub = await this.orgSubscriptionsRepo.findOne({
         where: { stripe_customer_id: stripeCustomerId },
         relations: ['organization', 'subscription_plan'],
+        order: { created_at: 'DESC' },
       });
     }
 
@@ -144,6 +108,7 @@ export class PaymentWebhooksService {
             status: SubscriptionStatusEnum.PENDING,
           },
           relations: ['organization', 'subscription_plan'],
+          order: { created_at: 'DESC' },
         });
         if (sub) {
           sub.stripe_subscription_id = stripeSub.id;
@@ -197,46 +162,9 @@ export class PaymentWebhooksService {
       await this.callScheduleService.pauseActiveSchedules(sub.organization_id);
     }
 
+    const stripeCustomerId = stripeSub.customer as string;
+    sub.organization.stripe_customer_id = stripeCustomerId;
     await this.orgSubscriptionsRepo.save(sub);
-  }
-
-  private async createPaymentHistory(
-    invoice: Stripe.Invoice,
-    isFailed = false,
-  ) {
-    const subscriptionId = invoice.parent?.subscription_details
-      ?.subscription as string | undefined;
-    let sub: OrganizationSubscription | null | undefined;
-    if (subscriptionId) {
-      sub = await this.orgSubscriptionsRepo.findOne({
-        where: { stripe_subscription_id: subscriptionId },
-      });
-    }
-    if (!sub) {
-      // Fallback to customer
-      const customerId = invoice.customer as string;
-      if (customerId) {
-        sub = await this.orgSubscriptionsRepo.findOne({
-          where: { stripe_customer_id: customerId },
-        });
-      }
-    }
-    if (!sub) return;
-
-    const history = this.paymentHistoryRepo.create({
-      organization_id: sub.organization_id,
-      organization_subscription_id: sub.id,
-      amount: invoice.amount_paid / 100, // Convert cents to dollars
-      currency: invoice.currency.toUpperCase(),
-      status: isFailed ? PaymentStatusEnum.FAILED : PaymentStatusEnum.SUCCEEDED,
-      stripe_invoice_id: invoice.id,
-      // stripe_payment_intent_id: invoice.payment_intent || null,
-      description: invoice.description,
-      paid_at:
-        invoice.status === 'paid' ? new Date(invoice.created * 1000) : null,
-    });
-
-    await this.paymentHistoryRepo.save(history);
   }
 
   private mapStripeStatusToEnum(
@@ -249,8 +177,12 @@ export class PaymentWebhooksService {
         return SubscriptionStatusEnum.ACTIVE;
       case 'trialing':
         return SubscriptionStatusEnum.TRIALING;
+      case 'past_due':
+        return SubscriptionStatusEnum.PAST_DUE;
       case 'incomplete':
         return SubscriptionStatusEnum.PAST_DUE;
+      case 'incomplete_expired':
+        return SubscriptionStatusEnum.EXPIRED;
       case 'canceled':
         return SubscriptionStatusEnum.CANCELLED;
       case 'unpaid':

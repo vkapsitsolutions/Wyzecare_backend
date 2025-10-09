@@ -71,6 +71,14 @@ export class Organization {
   @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updated_at: Date;
 
+  @Column({
+    name: 'stripe_customer_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  stripe_customer_id?: string | null;
+
   @OneToMany(
     () => OrganizationSubscription,
     (subscription) => subscription.organization,

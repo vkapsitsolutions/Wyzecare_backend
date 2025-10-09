@@ -111,4 +111,13 @@ export class OrganizationsService {
   getLanguageOptions() {
     return Object.values(LanguageEnum);
   }
+
+  async setStripeCustomer(
+    organization: Organization,
+    stripeCustomerId: string,
+  ) {
+    organization.stripe_customer_id = stripeCustomerId;
+
+    await this.organizationsRepo.save(organization);
+  }
 }
