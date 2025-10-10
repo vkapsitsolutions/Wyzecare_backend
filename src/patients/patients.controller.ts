@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { PatientsService } from './patients.service';
@@ -22,6 +23,7 @@ import { MedicalInfoDto } from './dto/medical-info.dto';
 import { HipaaAuthorizationService } from 'src/patient-consents/services/hipaa-authorization.service';
 import { PatientAccessGuard } from './guards/patient-access.guard';
 import { PatientAccessDecorator } from 'src/roles/decorators/patient-access.decorator';
+import { Request } from 'express';
 
 @Controller('patients')
 export class PatientsController {
@@ -59,8 +61,9 @@ export class PatientsController {
   getOnePatient(
     @CurrentUser() user: User,
     @Param('patientId', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ) {
-    return this.patientsService.findById(id);
+    return this.patientsService.findById(id, user, req);
   }
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
@@ -68,6 +71,7 @@ export class PatientsController {
   createPatientOrUpdatePatient(
     @CurrentUser() user: User,
     @Body() createPatientDto: CreatePatientDto | UpdatePatientDto,
+    @Req() req: Request,
   ) {
     if (!user.organization_id)
       throw new BadRequestException(
@@ -77,6 +81,7 @@ export class PatientsController {
       createPatientDto,
       user.organization_id,
       user,
+      req,
     );
   }
 
@@ -87,6 +92,7 @@ export class PatientsController {
     @CurrentUser() user: User,
     @Param('patientId', ParseUUIDPipe) id: string,
     @Body() patientContactData: PatientContactDto,
+    @Req() req: Request,
   ) {
     if (!user.organization_id)
       throw new BadRequestException(
@@ -97,6 +103,7 @@ export class PatientsController {
       user,
       patientContactData,
       user.organization_id,
+      req,
     );
   }
 
@@ -107,6 +114,7 @@ export class PatientsController {
     @CurrentUser() user: User,
     @Param('patientId', ParseUUIDPipe) id: string,
     @Body() medicalInfoData: MedicalInfoDto,
+    @Req() req: Request,
   ) {
     if (!user.organization_id)
       throw new BadRequestException(
@@ -117,6 +125,7 @@ export class PatientsController {
       user.organization_id,
       medicalInfoData,
       user,
+      req,
     );
   }
 }

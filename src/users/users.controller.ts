@@ -163,12 +163,14 @@ export class UsersController {
   deleteUser(
     @Param('id', ParseUUIDPipe) userToDeleteId: string,
     @CurrentUser() loggedInUser: User,
+    @Req() req: Request,
   ) {
     if (!loggedInUser.organization) return;
     return this.usersService.deleteUser(
       userToDeleteId,
       loggedInUser.organization.id,
       loggedInUser,
+      req,
     );
   }
 

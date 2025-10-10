@@ -22,6 +22,12 @@ import { PatientMedicalInfo } from './entities/patient-medical-info.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { PatientAccessService } from './patient-access.service';
 import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
+import { AuditLogsService } from 'src/audit-logs/audit-logs.service';
+import {
+  AuditAction,
+  AuditPayload,
+} from 'src/audit-logs/entities/audit-logs.entity';
+import { Request } from 'express';
 
 @Injectable()
 export class PatientsService {
@@ -33,6 +39,8 @@ export class PatientsService {
 
     @Inject(forwardRef(() => CallScriptUtilsService))
     private readonly callScriptUtilsService: CallScriptUtilsService,
+
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async findByPatientIdNumber(patientIdNumber: string) {
@@ -41,7 +49,7 @@ export class PatientsService {
     });
   }
 
-  async findById(id: string) {
+  async findById(id: string, loggedInUser?: User, req?: Request) {
     const patient = await this.patientRepository.findOne({
       where: { id },
       relations: {
@@ -56,6 +64,47 @@ export class PatientsService {
 
     if (!patient) {
       throw new NotFoundException(`Patient with ID ${id} not found`);
+    }
+
+    const sections: string[] = [];
+
+    if (patient) {
+      sections.push('Personal Information');
+    }
+
+    if (patient.contact) {
+      sections.push('Contact information');
+    }
+
+    if (patient.emergencyContacts) {
+      sections.push('Emergency contacts');
+    }
+
+    if (patient.medicalInfo) {
+      sections.push('Medical Information');
+    }
+
+    if (patient.callSchedules) {
+      sections.push('Call Schedules');
+    }
+
+    if (patient.assignedCallScripts.length) {
+      sections.push('Assigned scripts');
+    }
+
+    if (loggedInUser && req) {
+      await this.auditLogsService.createLog({
+        organization_id: loggedInUser.organization_id,
+        actor_id: loggedInUser.id,
+        role: loggedInUser.role?.slug,
+        action: AuditAction.PATIENT_VIEW,
+        module_id: patient.id,
+        module_name: 'Patient',
+        message: `Viewed patient ${patient.fullName} (ID: ${patient.id})`,
+        payload: { sections }, // Accessed sections for detailed auditing
+        ip_address: req.ip,
+        device_info: req.headers['user-agent'],
+      });
     }
 
     return {
@@ -184,6 +233,7 @@ export class PatientsService {
     dto: CreatePatientDto | UpdatePatientDto,
     organizationId: string,
     loggedInUser: User,
+    req: Request,
   ) {
     // extract fields (works for both Create & Update DTO shapes)
     const {
@@ -206,6 +256,8 @@ export class PatientsService {
       if (!patient) {
         throw new NotFoundException(`Patient with ID ${id} not found`);
       }
+
+      const beforeUpdate = { ...patient };
 
       if (patient.organization_id !== organizationId) {
         throw new ForbiddenException(
@@ -255,6 +307,24 @@ export class PatientsService {
 
       const updatedPatient = await this.patientRepository.save(patient);
 
+      const payload: AuditPayload = {
+        before: beforeUpdate,
+        after: updatedPatient,
+      };
+
+      await this.auditLogsService.createLog({
+        organization_id: loggedInUser.organization_id,
+        actor_id: loggedInUser.id,
+        role: loggedInUser.role?.slug,
+        action: AuditAction.PATIENT_EDIT,
+        module_id: patientId,
+        module_name: 'Patient',
+        message: `Edited patient details. Patient name ${patient.fullName}, Patient id: ${patient.id}`,
+        payload,
+        ip_address: req.ip,
+        device_info: req.headers['user-agent'],
+      });
+
       return {
         success: true,
         message: 'Patient updated successfully',
@@ -300,6 +370,19 @@ export class PatientsService {
       savedPatient,
     );
 
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.PATIENT_CREATED,
+      module_id: newPatient.id,
+      module_name: 'Patient',
+      message: `Created new patient. Patient name ${savedPatient.fullName}, Patient id: ${savedPatient.id}`,
+      payload: { after: savedPatient }, // Added info
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
+
     return {
       success: true,
       message: 'Patient created successfully',
@@ -312,6 +395,7 @@ export class PatientsService {
     loggedInUser: User,
     patientContactData: PatientContactDto,
     organizationId: string,
+    req: Request,
   ) {
     // 1) ensure patient exists
     const patient = await this.patientRepository.findOne({
@@ -321,6 +405,11 @@ export class PatientsService {
     if (!patient) {
       throw new NotFoundException(`Patient with ID ${patientId} not found`);
     }
+
+    const before = {
+      contactInfo: { ...patient.contact },
+      emergencyContacts: { ...patient.emergencyContacts },
+    };
 
     if (patient.organization_id !== organizationId) {
       throw new ForbiddenException('Patient belongs to different organization');
@@ -504,6 +593,27 @@ export class PatientsService {
           );
         }
 
+        const payload: AuditPayload = {
+          before: before,
+          after: {
+            contactInfo: result.contact,
+            emergencyContacts: result.emergencyContacts,
+          },
+        };
+
+        await this.auditLogsService.createLog({
+          organization_id: loggedInUser.organization_id,
+          actor_id: loggedInUser.id,
+          role: loggedInUser.role?.slug,
+          action: AuditAction.PATIENT_EDIT,
+          module_id: patient.id,
+          module_name: 'Patient',
+          message: `Edited patient contact and emergency contact. Patient name ${patient.fullName}, Patient id: ${patient.id}`,
+          payload,
+          ip_address: req.ip,
+          device_info: req.headers['user-agent'],
+        });
+
         return {
           success: true,
           message:
@@ -522,6 +632,7 @@ export class PatientsService {
     organizationId: string,
     medicalInfoDto: MedicalInfoDto,
     loggedInUser: User,
+    req: Request,
   ) {
     const patient = await this.patientRepository.findOne({
       where: { id: patientId },
@@ -534,6 +645,8 @@ export class PatientsService {
     if (patient.organization_id !== organizationId) {
       throw new ForbiddenException('Patient belongs to different organization');
     }
+
+    const before = { ...patient.medicalInfo };
 
     const result = await this.patientRepository.manager.transaction(
       async (manager) => {
@@ -589,6 +702,24 @@ export class PatientsService {
         };
       },
     );
+
+    const payload: AuditPayload = {
+      before: before,
+      after: patient.medicalInfo,
+    };
+
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.PATIENT_EDIT,
+      module_id: patient.id,
+      module_name: 'Patient',
+      message: `Edited patient medical information. Patient name ${patient.fullName}, Patient id: ${patient.id}`,
+      payload,
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
 
     return result;
   }

@@ -451,7 +451,7 @@ export class UsersService {
         action: AuditAction.USER_DEACTIVATED,
         module_id: userId,
         module_name: 'User',
-        message: 'User status updated',
+        message: `User with name ${user.fullName} deactivated. User id ${user.id}`,
         payload: {
           before: { beforeStatus },
           after: { afterStatus: user.status },
@@ -599,7 +599,7 @@ export class UsersService {
         action: AuditAction.USER_ROLE_CHANGE,
         module_id: userId,
         module_name: 'User',
-        message: 'User role changed',
+        message: `User with name ${user.fullName} role changed to ${user.role?.slug}. User id ${user.id}`,
         payload: {
           before: { oldRole },
           after: { newRole: user.role },
@@ -615,7 +615,12 @@ export class UsersService {
     };
   }
 
-  async deleteUser(userId: string, organizationId: string, loggedInUser: User) {
+  async deleteUser(
+    userId: string,
+    organizationId: string,
+    loggedInUser: User,
+    req: Request,
+  ) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: { role: true, organization: true },
@@ -638,6 +643,18 @@ export class UsersService {
     await this.userRepository.save(user);
 
     await this.userRepository.softDelete(user.id);
+
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.USER_DELETED,
+      module_id: userId,
+      module_name: 'User',
+      message: `User with name ${user.fullName} deleted. User id ${user.id}`,
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
 
     return {
       success: true,
