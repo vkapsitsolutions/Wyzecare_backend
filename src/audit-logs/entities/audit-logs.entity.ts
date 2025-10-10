@@ -36,7 +36,7 @@ export enum AuditAction {
   // Add more actions as needed for other clinical activities or features
 }
 
-interface AuditPayload {
+export interface AuditPayload {
   before?: Record<string, any>;
   after?: Record<string, any>;
   [key: string]: any; // allow allow extra data
