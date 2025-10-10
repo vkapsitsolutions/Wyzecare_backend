@@ -12,6 +12,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -33,6 +34,7 @@ import { ListOrgUsersDto } from './dto/list-org-users.dto';
 import { UserUtilsService } from './users-utils.service';
 import { EditUserDto } from './dto/edit-user.dto';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
+import { Request } from 'express';
 
 @Controller('users')
 export class UsersController {
@@ -125,12 +127,14 @@ export class UsersController {
   toggleUserStatus(
     @Param('id', ParseUUIDPipe) userId: string,
     @CurrentUser() loggedInUser: User,
+    @Req() req: Request,
   ) {
     if (!loggedInUser.organization) return;
     return this.usersService.toggleUserStatus(
       userId,
       loggedInUser.organization.id,
       loggedInUser,
+      req,
     );
   }
 
@@ -141,6 +145,7 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) userToEditId: string,
     @Body() updateUserDto: EditUserDto,
     @CurrentUser() user: User,
+    @Req() req: Request,
   ) {
     if (!user.organization) return;
     return this.usersService.editUser(
@@ -148,6 +153,7 @@ export class UsersController {
       userToEditId,
       user.organization.id,
       user,
+      req,
     );
   }
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { UserInvitationsService } from './user-invitations.service';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { User } from './entities/user.entity';
@@ -9,6 +9,7 @@ import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
 import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
+import { Request } from 'express';
 
 @Controller('user-invitations')
 export class UserInvitationsController {
@@ -27,7 +28,7 @@ export class UserInvitationsController {
   }
 
   @Post('accept')
-  async acceptInvite(@Body() dto: AcceptInvitationDto) {
-    return this.userInvitationsService.acceptInvite(dto);
+  async acceptInvite(@Body() dto: AcceptInvitationDto, @Req() req: Request) {
+    return this.userInvitationsService.acceptInvite(dto, req);
   }
 }

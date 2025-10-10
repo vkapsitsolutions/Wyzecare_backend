@@ -27,6 +27,9 @@ import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
 import { SubscriptionStatusEnum } from 'src/subscriptions/entities/organization-subscription.entity';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { Role } from 'src/roles/entities/role.entity';
+import { AuditLogsService } from 'src/audit-logs/audit-logs.service';
+import { AuditAction } from 'src/audit-logs/entities/audit-logs.entity';
+import { Request } from 'express';
 
 @Injectable()
 export class UserInvitationsService {
@@ -48,6 +51,8 @@ export class UserInvitationsService {
     private readonly userUtilsService: UserUtilsService,
 
     private readonly subscriptionService: SubscriptionsService,
+
+    private readonly auditLogService: AuditLogsService,
   ) {}
 
   async inviteUsers(dto: InviteUsersDto, currentUser: User) {
@@ -230,7 +235,7 @@ export class UserInvitationsService {
     };
   }
 
-  async acceptInvite(dto: AcceptInvitationDto) {
+  async acceptInvite(dto: AcceptInvitationDto, req: Request) {
     const { email, firstName, lastName, password, token } = dto;
 
     const invitation = await this.invitationsRepository.findOne({
@@ -375,6 +380,19 @@ export class UserInvitationsService {
     if (!savedUser) {
       throw new InternalServerErrorException('Failed to create user.');
     }
+
+    await this.auditLogService.createLog({
+      organization_id: savedUser.organization_id,
+      actor_id: invitation?.invited_by?.id,
+      role: RoleName.ADMINISTRATOR,
+      action: AuditAction.USER_CREATED,
+      module_id: savedUser.id,
+      module_name: 'User',
+      message: `Created new user account for ${savedUser.fullName}`,
+      payload: { after: savedUser }, // Snapshot of created data
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
 
     // --- Tokens & refresh token ---
     const { accessToken, refreshToken } =
