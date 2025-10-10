@@ -13,6 +13,7 @@ import { UserInvitationsController } from './user-invitations.controller';
 import { EmailModule } from 'src/email/email.module';
 import { RolesModule } from 'src/roles/roles.module';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
+import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
     EmailModule,
     RolesModule,
     SubscriptionsModule,
+    AuditLogsModule,
   ],
   controllers: [UsersController, UserInvitationsController],
   providers: [UsersService, UserUtilsService, UserInvitationsService],

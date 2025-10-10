@@ -10,6 +10,7 @@ import { RefreshStrategy } from './strategies/refresh.strategy';
 import { AuthController } from './auth.controller';
 import { JwtTokenService } from './jwt-token.service';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
     }),
 
     forwardRef(() => UsersModule),
+    AuditLogsModule,
   ],
   providers: [
     AuthService,

@@ -35,6 +35,9 @@ import { EditUserDto } from './dto/edit-user.dto';
 import { RolesService } from 'src/roles/roles.service';
 import axios from 'axios';
 import { Readable } from 'stream';
+import { AuditLogsService } from 'src/audit-logs/audit-logs.service';
+import { AuditAction } from 'src/audit-logs/entities/audit-logs.entity';
+import { Request } from 'express';
 
 @Injectable()
 export class UsersService {
@@ -54,6 +57,8 @@ export class UsersService {
     private readonly subscriptionsService: SubscriptionsService,
 
     private readonly rolesService: RolesService,
+
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -139,6 +144,7 @@ export class UsersService {
 
     const userExists = await this.userRepository.findOne({
       where: { email },
+      relations: { role: true },
       withDeleted: true,
     });
     if (userExists) {
@@ -385,6 +391,7 @@ export class UsersService {
     userId: string,
     organizationId: string,
     loggedInUser: User,
+    req: Request,
   ) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -394,6 +401,8 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with id ${userId} not found`);
     }
+
+    const beforeStatus = user.status;
 
     if (!user.organization || user.organization.id !== organizationId) {
       throw new ForbiddenException('User does not belong to this organization');
@@ -434,6 +443,24 @@ export class UsersService {
     user.updated_by = loggedInUser;
     const savedUser = await this.userRepository.save(user);
 
+    if (savedUser.status === USER_STATUS.INACTIVE) {
+      await this.auditLogsService.createLog({
+        organization_id: loggedInUser.organization_id,
+        actor_id: loggedInUser.id,
+        role: loggedInUser.role?.slug,
+        action: AuditAction.USER_DEACTIVATED,
+        module_id: userId,
+        module_name: 'User',
+        message: 'User status updated',
+        payload: {
+          before: { beforeStatus },
+          after: { afterStatus: user.status },
+        },
+        ip_address: req.ip,
+        device_info: req.headers['user-agent'],
+      });
+    }
+
     return {
       success: true,
       message: 'User status updated',
@@ -446,6 +473,7 @@ export class UsersService {
     userId: string,
     organizationId: string,
     loggedInUser: User,
+    req: Request,
   ) {
     const { firstName, lastName, roleName, status } = editUserDto;
 
@@ -457,6 +485,8 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with id ${userId} not found`);
     }
+
+    const oldRole = user.role?.slug;
 
     if (!user.organization || user.organization.id !== organizationId) {
       throw new ForbiddenException('User does not belong to this organization');
@@ -561,6 +591,23 @@ export class UsersService {
       },
     );
 
+    if (oldRole !== saved.role?.slug) {
+      await this.auditLogsService.createLog({
+        organization_id: loggedInUser.organization_id,
+        actor_id: loggedInUser.id,
+        role: loggedInUser.role?.slug,
+        action: AuditAction.USER_ROLE_CHANGE,
+        module_id: userId,
+        module_name: 'User',
+        message: 'User role changed',
+        payload: {
+          before: { oldRole },
+          after: { newRole: user.role },
+        },
+        ip_address: req.ip,
+        device_info: req.headers['user-agent'],
+      });
+    }
     return {
       success: true,
       message: 'User updated',

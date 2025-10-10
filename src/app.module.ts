@@ -24,6 +24,7 @@ import { CallSchedulesModule } from './call-schedules/call-schedules.module';
 import { CallsModule } from './calls/calls.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { ReportsModule } from './reports/reports.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -116,6 +117,8 @@ import { ReportsModule } from './reports/reports.module';
     AlertsModule,
 
     ReportsModule,
+
+    AuditLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
