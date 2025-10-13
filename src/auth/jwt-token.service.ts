@@ -13,7 +13,9 @@ export class JwtTokenService {
   generateRefreshToken(payload: { sub: string }) {
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.getOrThrow('JWT_REFRESH_TOKEN_EXPIRES'),
+      expiresIn: this.configService.getOrThrow<any>(
+        'JWT_REFRESH_TOKEN_EXPIRES',
+      ),
     });
 
     return refreshToken;
