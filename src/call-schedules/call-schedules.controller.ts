@@ -10,6 +10,7 @@ import {
   UseGuards,
   BadRequestException,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard'; // Adjust path if needed
@@ -23,6 +24,7 @@ import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
 import { Permission } from 'src/roles/enums/roles-permissions.enum';
 import { ListUpcomingCallsQuery } from './dto/list-upcoming-calls-query.dto';
+import { Request } from 'express';
 
 @Controller('call-schedules')
 export class CallSchedulesController {
@@ -34,6 +36,7 @@ export class CallSchedulesController {
   create(
     @CurrentUser() user: User,
     @Body() createCallScheduleDto: CreateCallScheduleDto,
+    @Req() req: Request,
   ) {
     if (!user.organization_id)
       throw new BadRequestException('User does not belong to any organization');
@@ -41,6 +44,7 @@ export class CallSchedulesController {
       user.organization_id,
       createCallScheduleDto,
       user,
+      req,
     );
   }
 
@@ -86,6 +90,7 @@ export class CallSchedulesController {
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateCallScheduleDto: UpdateCallScheduleDto,
+    @Req() req: Request,
   ) {
     if (!user.organization_id)
       throw new BadRequestException('User does not belong to any organization');
@@ -94,15 +99,25 @@ export class CallSchedulesController {
       id,
       updateCallScheduleDto,
       user,
+      req,
     );
   }
 
   @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
   @RequirePermissions(Permission.EDIT_PATIENTS)
   @Delete(':id')
-  remove(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+  remove(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
     if (!user.organization_id)
       throw new BadRequestException('User does not belong to any organization');
-    return this.callSchedulesService.remove(user.organization_id, id, user);
+    return this.callSchedulesService.remove(
+      user.organization_id,
+      id,
+      user,
+      req,
+    );
   }
 }
