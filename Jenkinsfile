@@ -18,7 +18,7 @@ pipeline {
         stage('Pull Changes') {
             steps {
                 dir(PROJECT_DIR) {
-                    sh 'git pull origin main'
+                    sh 'git pull origin staging'
                 }
             }
         }
@@ -61,6 +61,7 @@ pipeline {
         }
     }
 }
+
 
 
 
