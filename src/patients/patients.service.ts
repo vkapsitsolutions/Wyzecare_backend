@@ -317,7 +317,7 @@ export class PatientsService {
         actor_id: loggedInUser.id,
         role: loggedInUser.role?.slug,
         action: AuditAction.PATIENT_EDIT,
-        module_id: patientId,
+        module_id: patient.id,
         module_name: 'Patient',
         message: `Edited patient details. Patient name ${patient.fullName}, Patient id: ${patient.id}`,
         payload,
