@@ -1,0 +1,43 @@
+name: CD Pipeline Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e  # Exit immediately if any command fails
+
+            # Go to frontend folder
+            cd /var/www/staging/backend
+
+            # Pull latest code
+            git pull origin staging
+
+            # Build Docker Compose
+            echo "Building Docker Compose..."
+            docker compose build
+
+            # Only proceed if build succeeds
+            echo "Build succeeded, starting containers..."
+            cd ..
+            docker compose up -d
