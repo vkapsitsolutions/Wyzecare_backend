@@ -19,9 +19,7 @@ import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
         signOptions: {
-          expiresIn: configService.getOrThrow<string>(
-            'JWT_ACCESS_TOKEN_EXPIRES',
-          ),
+          expiresIn: configService.getOrThrow('JWT_ACCESS_TOKEN_EXPIRES'),
           algorithm: 'HS512',
         },
       }),
