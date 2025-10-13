@@ -115,7 +115,7 @@ export class SeederService implements OnModuleInit {
   }
 
   private async seedSubscriptionPlansIfNotExists() {
-    const monthlyPriceId = this.configService.get<string>(
+    const monthlyPriceId = this.configService.getOrThrow<string>(
       'STRIPE_MONTHLY_PRICE_ID',
     );
     const seeds: Partial<SubscriptionPlan>[] = [
