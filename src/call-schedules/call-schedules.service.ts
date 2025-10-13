@@ -21,6 +21,12 @@ import { CallFrequency, ScheduleStatus } from './enums/call-schedule.enum';
 import { PatientAccessService } from 'src/patients/patient-access.service';
 import { CallRun } from 'src/calls/entities/call-runs.entity';
 import { CallRunStatus } from 'src/calls/enums/calls.enum';
+import { AuditLogsService } from 'src/audit-logs/audit-logs.service';
+import {
+  AuditAction,
+  AuditPayload,
+} from 'src/audit-logs/entities/audit-logs.entity';
+import { Request } from 'express';
 
 export interface GetSchedulesQuery {
   page?: number;
@@ -65,12 +71,15 @@ export class CallSchedulesService {
     private callRunRepository: Repository<CallRun>,
     // @InjectRepository(Call)
     // private callRepository: Repository<Call>,
+
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async create(
     organizationId: string,
     createCallScheduleDto: CreateCallScheduleDto,
     loggedInUser: User,
+    req: Request,
   ) {
     const {
       patient_id,
@@ -169,6 +178,19 @@ export class CallSchedulesService {
     }
 
     await this.patientsService.updatePatientStatus(patient_id);
+
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.CALL_SCHEDULED,
+      module_id: schedule.id,
+      module_name: 'Call Schedule',
+      message: `Created new call schedule with id: ${schedule.id}`,
+      payload: { after: schedule }, // Added info
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
 
     return {
       success: true,
@@ -310,12 +332,15 @@ export class CallSchedulesService {
     id: string,
     updateCallScheduleDto: UpdateCallScheduleDto,
     loggedInUser: User,
+    req: Request,
   ) {
     const schedule = await this.findOneInternal(
       organizationId,
       id,
       loggedInUser,
     );
+
+    const beforeUpdate = { ...schedule };
 
     const { patient_id, script_id } = updateCallScheduleDto;
 
@@ -416,6 +441,24 @@ export class CallSchedulesService {
       await this.callsService.createCallRunFromSchedule(schedule);
     }
 
+    const payload: AuditPayload = {
+      before: beforeUpdate,
+      after: schedule,
+    };
+
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.CALL_SCHEDULE_EDITED,
+      module_id: schedule.id,
+      module_name: 'Call Schedule',
+      message: `Edited call schedule with id: ${schedule.id}`,
+      payload,
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
+
     await this.patientsService.updatePatientStatus(schedule.patient_id);
 
     return {
@@ -425,7 +468,12 @@ export class CallSchedulesService {
     };
   }
 
-  async remove(organizationId: string, id: string, loggedInUser: User) {
+  async remove(
+    organizationId: string,
+    id: string,
+    loggedInUser: User,
+    req: Request,
+  ) {
     const callSchedule = await this.findOneInternal(
       organizationId,
       id,
@@ -441,6 +489,18 @@ export class CallSchedulesService {
     await this.callScheduleRepository.softDelete({ id });
 
     await this.patientsService.updatePatientStatus(callSchedule.patient_id);
+
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.CALL_SCHEDULE_DELETED,
+      module_id: id,
+      module_name: 'Call Schedule',
+      message: `Call schedule deleted with id ${id}`,
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
 
     return {
       success: true,

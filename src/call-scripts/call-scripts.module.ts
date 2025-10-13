@@ -10,6 +10,7 @@ import { AiCallingModule } from 'src/ai-calling/ai-calling.module';
 import { CallScriptUtilsService } from './call-scripts-utils.service';
 import { PatientsModule } from 'src/patients/patients.module';
 import { CallsModule } from 'src/calls/calls.module';
+import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CallsModule } from 'src/calls/calls.module';
     AiCallingModule,
     PatientsModule,
     CallsModule,
+    forwardRef(() => AuditLogsModule),
   ],
   controllers: [CallScriptsController],
   providers: [CallScriptsService, CallScriptUtilsService],

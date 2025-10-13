@@ -24,6 +24,12 @@ import { AssignCallScriptToPatientsDto } from './dto/assign-script.dto';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { PatientsService } from 'src/patients/patients.service';
 import { CallScriptUtilsService } from './call-scripts-utils.service';
+import { AuditLogsService } from 'src/audit-logs/audit-logs.service';
+import {
+  AuditAction,
+  AuditPayload,
+} from 'src/audit-logs/entities/audit-logs.entity';
+import { Request } from 'express';
 
 @Injectable()
 export class CallScriptsService {
@@ -39,6 +45,8 @@ export class CallScriptsService {
 
     @Inject(forwardRef(() => CallScriptUtilsService))
     private readonly callScriptUtilsService: CallScriptUtilsService,
+
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async checkSlugExists(slug: string, orgId: string, excludeId?: string) {
@@ -56,6 +64,7 @@ export class CallScriptsService {
     createCallScriptDto: CreateCallScriptDto,
     organizationId: string,
     user: User,
+    req: Request,
   ) {
     const slug = slugify(createCallScriptDto.title, {
       lower: true,
@@ -96,6 +105,19 @@ export class CallScriptsService {
     }
 
     const savedScript = await this.callScriptRepository.save(callScript);
+
+    await this.auditLogsService.createLog({
+      organization_id: user.organization_id,
+      actor_id: user.id,
+      role: user.role?.slug,
+      action: AuditAction.CALL_SCRIPT_CREATED,
+      module_id: savedScript.id,
+      module_name: 'Call Script',
+      message: `Created new call script. Name: ${savedScript.title} id: ${savedScript.id}`,
+      payload: { after: savedScript }, // Added info
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
 
     return {
       success: true,
@@ -172,12 +194,15 @@ export class CallScriptsService {
     updateCallScriptDto: UpdateCallScriptDto,
     organizationId: string,
     user: User,
+    req: Request,
   ) {
     const { callScript } = await this.findOne(id, organizationId);
 
     if (!callScript.editable) {
       throw new BadRequestException('This call script cannot be edited');
     }
+
+    const beforeUpdate = { ...callScript };
 
     let newSlug = callScript.slug;
     if (
@@ -276,6 +301,24 @@ export class CallScriptsService {
 
     // --- SAVE SCRIPT ---
     const updatedScript = await this.callScriptRepository.save(callScript);
+
+    const payload: AuditPayload = {
+      before: beforeUpdate,
+      after: updatedScript,
+    };
+
+    await this.auditLogsService.createLog({
+      organization_id: user.organization_id,
+      actor_id: user.id,
+      role: user.role?.slug,
+      action: AuditAction.CALL_SCRIPT_UPDATED,
+      module_id: updatedScript.id,
+      module_name: 'Call Script',
+      message: `Edited edited call script. Title: ${updatedScript.title} id: ${updatedScript.id}`,
+      payload,
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
 
     return {
       success: true,

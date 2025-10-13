@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { CallScriptsService } from './call-scripts.service';
@@ -23,6 +24,7 @@ import { UpdateCallScriptDto } from './dto/update-call-script.dto';
 import { ListCallScriptDto } from './dto/list-call-scripts.dto';
 import { TestCallDto } from './dto/test-call.dto';
 import { AssignCallScriptToPatientsDto } from './dto/assign-script.dto';
+import { Request } from 'express';
 
 @Controller('call-scripts')
 export class CallScriptsController {
@@ -34,12 +36,14 @@ export class CallScriptsController {
   create(
     @Body() createCallScriptDto: CreateCallScriptDto,
     @CurrentUser() loggedInUser: User,
+    @Req() req: Request,
   ) {
     if (!loggedInUser.organization_id) return;
     return this.callScriptsService.create(
       createCallScriptDto,
       loggedInUser.organization_id,
       loggedInUser,
+      req,
     );
   }
 
@@ -75,6 +79,7 @@ export class CallScriptsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateCallScriptDto: UpdateCallScriptDto,
     @CurrentUser() loggedInUser: User,
+    @Req() req: Request,
   ) {
     if (!loggedInUser.organization_id) return;
     return this.callScriptsService.update(
@@ -82,6 +87,7 @@ export class CallScriptsController {
       updateCallScriptDto,
       loggedInUser.organization_id,
       loggedInUser,
+      req,
     );
   }
 
