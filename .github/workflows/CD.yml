@@ -35,9 +35,9 @@ jobs:
 
             # Build Docker Compose
             echo "Building Docker Compose..."
-            docker compose build
+            # docker compose build
 
             # Only proceed if build succeeds
             echo "Build succeeded, starting containers..."
             cd ..
-            docker compose up -d
+            docker compose up --build -d
