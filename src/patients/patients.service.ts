@@ -596,8 +596,8 @@ export class PatientsService {
         const payload: AuditPayload = {
           before: before,
           after: {
-            contactInfo: result.contact,
-            emergencyContacts: result.emergencyContacts,
+            contactInfo: savedContact,
+            emergencyContacts: savedEmergencies,
           },
         };
 
