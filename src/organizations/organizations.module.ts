@@ -4,9 +4,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Organization } from './entities/organization.entity';
 import { OrganizationsController } from './organizations.controller';
 import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
+import { RolesModule } from 'src/roles/roles.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Organization]), CallScriptsModule],
+  imports: [
+    TypeOrmModule.forFeature([Organization]),
+    CallScriptsModule,
+    RolesModule,
+  ],
   providers: [OrganizationsService],
   exports: [OrganizationsService],
   controllers: [OrganizationsController],

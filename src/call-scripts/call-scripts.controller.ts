@@ -30,6 +30,11 @@ import { Request } from 'express';
 export class CallScriptsController {
   constructor(private readonly callScriptsService: CallScriptsService) {}
 
+  @Get('temp')
+  temp() {
+    return this.callScriptsService.temp('call_52453d77c31aa3466c143b92895');
+  }
+
   @UseGuards(JwtAuthGuard, PermissionsGuard, ActiveSubscriptionsGuard)
   @RequirePermissions(Permission.EDIT_PATIENTS)
   @Post()
