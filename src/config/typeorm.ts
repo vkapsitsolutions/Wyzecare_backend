@@ -17,6 +17,9 @@ const config = {
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
   migrationsRun: true,
+  ssl: process.env.POSTGRES_SSL
+    ? process.env.POSTGRES_SSL.toLowerCase() === 'true'
+    : undefined,
 };
 
 export default registerAs('typeorm-config', () => config);

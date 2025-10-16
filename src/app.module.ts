@@ -73,6 +73,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
         STRIPE_SECRET_KEY: Joi.string().required(),
         STRIPE_MONTHLY_PRICE_ID: Joi.string().required(),
         STRIPE_WEBHOOK_SECRET: Joi.string().required(),
+        POSTGRES_SSL: Joi.boolean().default(false),
       }),
     }),
 
