@@ -18,9 +18,10 @@ const config = {
   logging: process.env.NODE_ENV === 'development',
   migrationsRun: true,
   ssl: process.env.POSTGRES_SSL
-    ? 
-    {rejectUnauthorized: true,
-    ca: fs.readFileSync('global-bundle.pem').toString(),}
+    ? {
+        rejectUnauthorized: true,
+        ca: fs.readFileSync('../global-bundle.pem').toString(),
+      }
     : false,
 };
 
