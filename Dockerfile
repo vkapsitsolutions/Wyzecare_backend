@@ -34,9 +34,9 @@
 
    COPY --from=builder /app/dist ./dist
 
-   COPY --from=deps /app/node_modules ./node_modules
+   COPY --from=builder /app/global-bundle.pem ./global-bundle.pem
 
-   # COPY --from=builder /app/.env ./.env
+   COPY --from=deps /app/node_modules ./node_modules
 
    RUN addgroup -S app && adduser -S app -G app
 
