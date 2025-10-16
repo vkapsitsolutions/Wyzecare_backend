@@ -6,18 +6,31 @@ on:
       - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
 
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Build Docker compose via SSH
+        uses: appleboy/ssh-action@v1.2.0
         with:
-          node-version: '22'
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/production/backend
+            git checkout main
+            git pull origin main
+            cd ..
+            docker compose build
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -25,22 +38,5 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            set -e  # Exit immediately if any command fails
-
-            # Go to frontend folder
-            cd /var/www/production/backend
-
-            # Pull latest code
-            echo "Pulling latest code..."
-            git checkout main
-            git pull origin main
-
-            # Build Docker Compose
-            echo "Building Docker Compose..."
-            cd ..
-            docker compose build
-
-            # Only proceed if build succeeds
-            echo "Build succeeded, starting containers..."
-
+            cd /var/www/production
             docker compose up -d
