@@ -1,7 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { config as dotenvConfig } from 'dotenv';
 import { DataSource, DataSourceOptions } from 'typeorm';
-
+import * as fs from 'fs';
 dotenvConfig({ path: '.env' });
 
 const config = {
@@ -18,8 +18,10 @@ const config = {
   logging: process.env.NODE_ENV === 'development',
   migrationsRun: true,
   ssl: process.env.POSTGRES_SSL
-    ? process.env.POSTGRES_SSL.toLowerCase() === 'true'
-    : undefined,
+    ? 
+    rejectUnauthorized: true,
+    ca: fs.readFileSync('global-bundle.pem').toString(),
+    : false,
 };
 
 export default registerAs('typeorm-config', () => config);
