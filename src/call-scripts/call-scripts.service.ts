@@ -396,14 +396,4 @@ export class CallScriptsService {
 
     return { success: true, message: 'Call script assigned to patients' };
   }
-
-  async temp(callId: string) {
-    const tempResponse = await this.aiCallingService.fetchCallDetails(callId);
-
-    return {
-      callId: tempResponse.call_id,
-      status: tempResponse.call_status,
-      webhooks: tempResponse.wellness_rating,
-    };
-  }
 }
