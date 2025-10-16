@@ -34,7 +34,7 @@
 
    COPY --from=builder /app/dist ./dist
 
-   COPY --from=builder /app/src/global-bundle.pem ./global-bundle.pem
+   COPY --from=builder /app/global-bundle.pem ./global-bundle.pem
 
    COPY --from=deps /app/node_modules ./node_modules
 

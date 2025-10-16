@@ -20,7 +20,7 @@ const config = {
   ssl: process.env.POSTGRES_SSL
     ? {
         rejectUnauthorized: true,
-        ca: fs.readFileSync('../global-bundle.pem').toString(),
+        ca: fs.readFileSync('global-bundle.pem').toString(),
       }
     : false,
 };
