@@ -1,0 +1,46 @@
+name: CD Pipeline Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e  # Exit immediately if any command fails
+
+            # Go to frontend folder
+            cd /var/www/production/backend
+
+            # Pull latest code
+            echo "Pulling latest code..."
+            git checkout main
+            git pull origin main
+
+            # Build Docker Compose
+            echo "Building Docker Compose..."
+            cd ..
+            docker compose build
+
+            # Only proceed if build succeeds
+            echo "Build succeeded, starting containers..."
+
+            docker compose up -d
