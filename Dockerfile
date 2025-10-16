@@ -36,7 +36,7 @@
 
    COPY --from=deps /app/node_modules ./node_modules
 
-   COPY --from=builder /app/.env ./.env
+   # COPY --from=builder /app/.env ./.env
 
    RUN addgroup -S app && adduser -S app -G app
 
