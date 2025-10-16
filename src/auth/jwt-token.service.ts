@@ -13,7 +13,8 @@ export class JwtTokenService {
   generateRefreshToken(payload: { sub: string }) {
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.getOrThrow<string>(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      expiresIn: this.configService.getOrThrow<any>(
         'JWT_REFRESH_TOKEN_EXPIRES',
       ),
     });

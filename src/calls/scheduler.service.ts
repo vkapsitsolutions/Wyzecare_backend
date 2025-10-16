@@ -63,8 +63,27 @@ export class SchedulerService {
 
       // Process failed call runs that need retry
       await this.processRetryCallRuns();
+
+      // Process unhandled calls by any reason
+      await this.processOngoingCallsForAWhile();
     } catch (error) {
       this.logger.error(`Error processing scheduled calls: ${error}`);
+    }
+  }
+
+  private async processOngoingCallsForAWhile() {
+    const ongoingCallsForAWhile = await this.callRepository
+      .createQueryBuilder('c')
+      .where('c.status = :status', { status: CallStatus.ONGOING })
+      .andWhere("c.started_at <= now() - interval '3 minutes'")
+      .getMany();
+
+    for (const call of ongoingCallsForAWhile) {
+      if (call.external_id) {
+        await this.callsService.forcefullyUpdateCallAndCallRunStatus(
+          call.external_id,
+        );
+      }
     }
   }
 

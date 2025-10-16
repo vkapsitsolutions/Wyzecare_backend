@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { catchError, firstValueFrom } from 'rxjs';
 import { InitiateCallPayload } from './payloads/initiate-call.payload';
 import { InitiateCallResponse } from './payloads/initiate-call.reponse';
+import { CallPayload } from 'src/webhooks/types/webhooks-payload';
 
 @Injectable()
 export class AiCallingService {
@@ -64,5 +65,30 @@ export class AiCallingService {
     }
 
     return data;
+  }
+
+  async fetchCallDetails(externalCallId: string) {
+    const url = `${this.callingServiceUrl}/get_status/${externalCallId}`;
+
+    const response = await firstValueFrom(
+      this.httpService
+        // tell HttpService what the body shape will be
+        .get<CallPayload>(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.callingServiceToken}`,
+          },
+        })
+        .pipe(
+          catchError((error) => {
+            this.logger.error(`Calling service transport error:  ${error}`);
+            throw new BadRequestException(
+              'Could not initiate the call, please try again',
+            );
+          }),
+        ),
+    );
+
+    return response.data;
   }
 }

@@ -11,6 +11,7 @@ import { CallWebhookPayload } from 'src/webhooks/types/webhooks-payload';
 import { GetPatientCallHistoryDto } from './dto/get-patient-call-history.dto';
 import { AlertsService } from 'src/alerts/alerts.service';
 import { AlertSeverity } from 'src/alerts/entities/alert.entity';
+import { AiCallingService } from 'src/ai-calling/ai-calling.service';
 
 @Injectable()
 export class CallsService {
@@ -29,6 +30,8 @@ export class CallsService {
     private readonly callUtilsService: CallUtilsService,
 
     private readonly alertsService: AlertsService,
+
+    private readonly aiCallingService: AiCallingService,
   ) {}
 
   async createCallRunFromSchedule(schedule: CallSchedule): Promise<CallRun> {
@@ -137,6 +140,9 @@ export class CallsService {
           allowed_attempts: schedule.max_attempts,
           attempts_count: 0,
         });
+
+        // delete duplicate call runs if any
+        await this.deleteEmptyCallRunsBySchedule(schedule);
 
         await this.callRunRepository.save(nextCallRun);
         this.logger.log(
@@ -464,5 +470,82 @@ export class CallsService {
     });
 
     return call;
+  }
+
+  async forcefullyUpdateCallAndCallRunStatus(externalCallId: string) {
+    this.logger.log('Processing unhandled call for any reason');
+    const callData =
+      await this.aiCallingService.fetchCallDetails(externalCallId);
+
+    const call = await this.callRepository.findOne({
+      where: { external_id: callData.call_id },
+      relations: { call_run: true, schedule: true },
+    });
+
+    if (call) {
+      if (call.status !== CallStatus.ONGOING) {
+        return;
+      }
+      call.status = this.callUtilsService.mapWebhookStatusToCallStatus(
+        callData.call_status,
+        callData.disconnection_reason,
+      );
+
+      if (call.status === CallStatus.ENDED) {
+        call.started_at = callData.start_timestamp
+          ? new Date(callData.start_timestamp)
+          : new Date();
+
+        call.ended_at = callData.end_timestamp
+          ? new Date(callData.end_timestamp)
+          : new Date();
+
+        if (callData.duration_ms) {
+          const ms = Number(callData.duration_ms) || 0;
+          call.duration_seconds = Math.floor(ms / 1000); // integer seconds
+        }
+
+        if (callData.transcript) {
+          call.meta = {
+            ...call.meta,
+            transcript: callData.transcript,
+            transcript_object: callData.transcript_object,
+            transcript_with_tool_calls: callData.transcript_with_tool_calls,
+          };
+        }
+
+        // Store recording URL if available
+        if (callData.recording_url) {
+          call.meta = {
+            ...call.meta,
+            recording_url: callData.recording_url,
+          };
+        }
+      }
+
+      // Store any analysis data in meta
+      call.meta = {
+        ...call.meta,
+        analysis: callData.call_analysis || {},
+      };
+
+      // Store failure reason if call failed or not connected
+      if (
+        call.status === CallStatus.ERROR ||
+        call.status === CallStatus.NOT_CONNECTED
+      ) {
+        call.failure_reason =
+          callData.disconnection_reason || 'Call ended unexpectedly';
+      }
+
+      // call.webhook_response = webhookPayload; // cannot fetch webhook response here
+
+      await this.callRepository.save(call);
+
+      // Update call run from call result
+      await this.updateCallRunFromCallResult(call);
+    }
+
+    return;
   }
 }

@@ -9,6 +9,7 @@ import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { CallsModule } from 'src/calls/calls.module';
 import { RolesModule } from 'src/roles/roles.module';
 import { CallRun } from 'src/calls/entities/call-runs.entity';
+import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CallRun } from 'src/calls/entities/call-runs.entity';
     CallsModule,
     PatientsModule,
     RolesModule,
+    forwardRef(() => AuditLogsModule),
   ],
   providers: [CallSchedulesService],
   controllers: [CallSchedulesController],

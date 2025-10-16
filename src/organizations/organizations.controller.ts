@@ -12,6 +12,9 @@ import { User } from 'src/users/entities/user.entity';
 import { OrganizationsService } from './organizations.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { UpdateConfigurationDto } from './dto/update-configuration.dto';
+import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
+import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
+import { Permission } from 'src/roles/enums/roles-permissions.enum';
 
 @Controller('organizations')
 export class OrganizationsController {
@@ -35,8 +38,9 @@ export class OrganizationsController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Patch('configuration')
+  @RequirePermissions(Permission.SYSTEM_SETTINGS)
   async updateConfiguration(
     @Body() updateDto: UpdateConfigurationDto,
     @CurrentUser() loggedInUser: User,

@@ -317,7 +317,7 @@ export class PatientsService {
         actor_id: loggedInUser.id,
         role: loggedInUser.role?.slug,
         action: AuditAction.PATIENT_EDIT,
-        module_id: patientId,
+        module_id: patient.id,
         module_name: 'Patient',
         message: `Edited patient details. Patient name ${patient.fullName}, Patient id: ${patient.id}`,
         payload,
@@ -439,36 +439,6 @@ export class PatientsService {
         const existingContact = await contactRepo.findOne({
           where: { patient_id: patientId },
         });
-
-        // Determine the new primary phone after update/create
-        let newPrimaryPhone: string | null = null;
-        if (existingContact) {
-          newPrimaryPhone =
-            'primary_phone' in patientContactData
-              ? patientContactData.primary_phone
-              : existingContact.primary_phone;
-        } else {
-          newPrimaryPhone = patientContactData.primary_phone ?? null;
-        }
-
-        // Check for duplicate primary phone within the organization if applicable
-        if (newPrimaryPhone && newPrimaryPhone.trim() !== '') {
-          const conflicting = await contactRepo
-            .createQueryBuilder('contact')
-            .innerJoin('contact.patient', 'patient')
-            .where('contact.primary_phone = :phone', { phone: newPrimaryPhone })
-            .andWhere('patient.organization_id = :orgId', {
-              orgId: organizationId,
-            })
-            .andWhere('contact.patient_id != :patId', { patId: patientId })
-            .getCount();
-
-          if (conflicting > 0) {
-            throw new BadRequestException(
-              `Primary phone ${newPrimaryPhone} is already in use by another patient in this organization`,
-            );
-          }
-        }
 
         if (existingContact) {
           // update only provided fields
@@ -596,8 +566,8 @@ export class PatientsService {
         const payload: AuditPayload = {
           before: before,
           after: {
-            contactInfo: result.contact,
-            emergencyContacts: result.emergencyContacts,
+            contactInfo: savedContact,
+            emergencyContacts: savedEmergencies,
           },
         };
 
