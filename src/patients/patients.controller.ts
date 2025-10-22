@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -127,5 +128,16 @@ export class PatientsController {
       user,
       req,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PatientAccessGuard)
+  @PatientAccessDecorator('write')
+  @Delete(':patientId')
+  deletePatient(
+    @CurrentUser() user: User,
+    @Param('patientId', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    return this.patientsService.deletePatient(id, user, req);
   }
 }

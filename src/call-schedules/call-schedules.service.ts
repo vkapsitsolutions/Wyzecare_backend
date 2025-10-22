@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -27,6 +29,7 @@ import {
   AuditPayload,
 } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
+import { CallScheduleConflictService } from './call-schedule-conflict.service';
 
 export interface GetSchedulesQuery {
   page?: number;
@@ -59,8 +62,10 @@ export class CallSchedulesService {
     @InjectRepository(CallSchedule)
     private readonly callScheduleRepository: Repository<CallSchedule>,
 
+    @Inject(forwardRef(() => PatientsService))
     private readonly patientsService: PatientsService,
 
+    @Inject(forwardRef(() => CallScriptUtilsService))
     private readonly callScriptUtilsService: CallScriptUtilsService,
 
     private readonly callsService: CallsService,
@@ -69,10 +74,10 @@ export class CallSchedulesService {
 
     @InjectRepository(CallRun)
     private callRunRepository: Repository<CallRun>,
-    // @InjectRepository(Call)
-    // private callRepository: Repository<Call>,
 
     private readonly auditLogsService: AuditLogsService,
+
+    private readonly conflictService: CallScheduleConflictService,
   ) {}
 
   async create(
@@ -87,6 +92,10 @@ export class CallSchedulesService {
       retry_interval_minutes,
       time_window_start,
       time_window_end,
+      frequency,
+      timezone,
+      estimated_duration_seconds,
+      max_attempts,
     } = createCallScheduleDto;
 
     // Validate retry_interval_minutes if provided
@@ -157,6 +166,23 @@ export class CallSchedulesService {
       throw new BadRequestException(`Call script not assigned to patient`);
     }
 
+    // ============================================================
+    // Check for scheduling conflicts - ONLY for ACTIVE schedules
+    // ============================================================
+    if (createCallScheduleDto.status === ScheduleStatus.ACTIVE) {
+      await this.conflictService.checkForConflicts({
+        patientId: patient_id,
+        frequency,
+        timezone,
+        timeWindowStart: time_window_start,
+        timeWindowEnd: time_window_end,
+        estimatedDurationSeconds: estimated_duration_seconds,
+        maxAttempts: max_attempts,
+        retryIntervalMinutes: retry_interval_minutes,
+      });
+    }
+    // ============================================================
+
     const schedule = this.callScheduleRepository.create({
       ...createCallScheduleDto,
       organization_id: organizationId,
@@ -164,7 +190,7 @@ export class CallSchedulesService {
       updated_by_id: loggedInUser.id,
     });
 
-    const scheduleStatus = schedule.status; // ACTIVE | INACTIVE | PAUSED
+    const scheduleStatus = schedule.status;
 
     if (scheduleStatus === ScheduleStatus.ACTIVE) {
       schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
@@ -187,7 +213,7 @@ export class CallSchedulesService {
       module_id: schedule.id,
       module_name: 'Call Schedule',
       message: `Created new call schedule with id: ${schedule.id}`,
-      payload: { after: schedule }, // Added info
+      payload: { after: schedule },
       ip_address: req.ip,
       device_info: req.headers['user-agent'],
     });
@@ -379,7 +405,6 @@ export class CallSchedulesService {
     }
 
     if (patient_id && script_id) {
-      // check script is assigned to patient or not
       const scriptAssignedToPatient =
         await this.callScriptUtilsService.isScriptAssignedToPatient(
           patient_id,
@@ -391,25 +416,27 @@ export class CallSchedulesService {
       }
     }
 
-    Object.assign(schedule, updateCallScheduleDto);
-    schedule.updated_by_id = loggedInUser.id;
+    // Merge updates to get the final state for validation
+    const updatedSchedule = { ...schedule, ...updateCallScheduleDto };
 
-    // Handle next_scheduled_at based on (new) status
-    if (schedule.status === ScheduleStatus.ACTIVE) {
-      // Ensure required fields for active schedules
+    // ============================================================
+    // NEW: Check for conflicts if status is ACTIVE
+    // ============================================================
+    if (updatedSchedule.status === ScheduleStatus.ACTIVE) {
+      // Ensure required fields
       if (
-        !schedule.timezone ||
-        !schedule.time_window_start ||
-        !schedule.time_window_end
+        !updatedSchedule.timezone ||
+        !updatedSchedule.time_window_start ||
+        !updatedSchedule.time_window_end
       ) {
         throw new BadRequestException(
           'timezone, time_window_start, and time_window_end are required for ACTIVE schedules',
         );
       }
 
-      // Validate time window logic (start < end)
-      const startTime = moment(schedule.time_window_start, 'HH:mm');
-      const endTime = moment(schedule.time_window_end, 'HH:mm');
+      // Validate time window logic
+      const startTime = moment(updatedSchedule.time_window_start, 'HH:mm');
+      const endTime = moment(updatedSchedule.time_window_end, 'HH:mm');
       if (!startTime.isValid() || !endTime.isValid()) {
         throw new BadRequestException(
           'Invalid time format for time_window_start or time_window_end',
@@ -421,19 +448,37 @@ export class CallSchedulesService {
         );
       }
 
-      // Recalculate only if ACTIVE
+      // Check for conflicts (exclude current schedule)
+      await this.conflictService.checkForConflicts({
+        patientId: updatedSchedule.patient_id,
+        frequency: updatedSchedule.frequency,
+        timezone: updatedSchedule.timezone,
+        timeWindowStart: updatedSchedule.time_window_start,
+        timeWindowEnd: updatedSchedule.time_window_end,
+        estimatedDurationSeconds: updatedSchedule.estimated_duration_seconds,
+        maxAttempts: updatedSchedule.max_attempts,
+        retryIntervalMinutes: updatedSchedule.retry_interval_minutes,
+        excludeScheduleId: schedule.id, // Exclude the schedule being updated
+      });
+    }
+    // ============================================================
+
+    Object.assign(schedule, updateCallScheduleDto);
+    schedule.updated_by_id = loggedInUser.id;
+
+    // Handle next_scheduled_at based on status
+    if (schedule.status === ScheduleStatus.ACTIVE) {
       schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
     } else {
-      // For non-ACTIVE, clear next_scheduled_at
       schedule.next_scheduled_at = null;
     }
 
     await this.callScheduleRepository.save(schedule);
 
-    // Delete existing pending calls (if any) - always, for consistency on updates
+    // Delete existing pending calls
     await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
 
-    // Create a new scheduled call only if status is ACTIVE and next_scheduled_at is set
+    // Create new scheduled call if ACTIVE
     if (
       schedule.status === ScheduleStatus.ACTIVE &&
       schedule.next_scheduled_at
@@ -874,6 +919,22 @@ export class CallSchedulesService {
 
     this.logger.log(
       `Activated schedules for organization id: ${organizationId} on subscription activation`,
+    );
+  }
+
+  async deleteSchedulesWhenPatientIsDeleted(patientId: string) {
+    const schedules = await this.callScheduleRepository.find({
+      where: { patient_id: patientId },
+    });
+
+    for (const schedule of schedules) {
+      await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
+
+      await this.callScheduleRepository.softDelete({ id: schedule.id });
+    }
+
+    this.logger.log(
+      `Deleted call schedules for patient id: ${patientId} on patient deletion`,
     );
   }
 }

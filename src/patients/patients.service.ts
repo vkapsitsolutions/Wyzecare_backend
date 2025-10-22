@@ -28,6 +28,7 @@ import {
   AuditPayload,
 } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
+import { CallSchedulesService } from 'src/call-schedules/call-schedules.service';
 
 @Injectable()
 export class PatientsService {
@@ -41,6 +42,8 @@ export class PatientsService {
     private readonly callScriptUtilsService: CallScriptUtilsService,
 
     private readonly auditLogsService: AuditLogsService,
+
+    private readonly callSchedulesService: CallSchedulesService,
   ) {}
 
   async findByPatientIdNumber(patientIdNumber: string) {
@@ -226,6 +229,52 @@ export class PatientsService {
       limit: perPage,
       totalPages,
       data: patients,
+    };
+  }
+
+  async deletePatient(patientId: string, loggedInUser: User, req: Request) {
+    const patient = await this.patientRepository.findOne({
+      where: { id: patientId },
+    });
+
+    if (!patient) {
+      throw new BadRequestException(
+        `Patient with ID ${patientId} does not exist`,
+      );
+    }
+
+    const canEditPatient =
+      await this.patientAccessService.canAccessAndEditPatient(
+        loggedInUser.id,
+        patient,
+      );
+
+    if (!canEditPatient) {
+      throw new ForbiddenException('You cannot delete this patient');
+    }
+
+    await this.patientRepository.softDelete(patient.id);
+
+    await this.callSchedulesService.deleteSchedulesWhenPatientIsDeleted(
+      patientId,
+    );
+
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.PATIENT_DELETE,
+      module_id: patient.id,
+      module_name: 'Patient',
+      message: `Deleted patient. Patient name ${patient.fullName}, Patient id: ${patient.id}`,
+      payload: { before: patient },
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
+
+    return {
+      success: true,
+      message: 'Patient deleted successfully',
     };
   }
 
