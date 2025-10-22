@@ -33,6 +33,9 @@ export class AuthService {
       throw new BadRequestException(
         'Your account is inactive. Please contact administrator',
       );
+    if (!user?.password) {
+      return null;
+    }
     if (user && (await argon2.verify(user.password, pass))) {
       return user;
     } else {
