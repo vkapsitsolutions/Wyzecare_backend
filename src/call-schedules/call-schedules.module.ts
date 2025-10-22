@@ -10,19 +10,19 @@ import { CallsModule } from 'src/calls/calls.module';
 import { RolesModule } from 'src/roles/roles.module';
 import { CallRun } from 'src/calls/entities/call-runs.entity';
 import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
+import { CallScheduleConflictService } from './call-schedule-conflict.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([CallSchedule, CallRun]),
     forwardRef(() => SubscriptionsModule),
-    PatientsModule,
-    CallScriptsModule,
+    forwardRef(() => PatientsModule),
+    forwardRef(() => CallScriptsModule),
     CallsModule,
-    PatientsModule,
     RolesModule,
     forwardRef(() => AuditLogsModule),
   ],
-  providers: [CallSchedulesService],
+  providers: [CallSchedulesService, CallScheduleConflictService],
   controllers: [CallSchedulesController],
   exports: [CallSchedulesService],
 })
