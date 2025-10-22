@@ -130,6 +130,9 @@ export class CallSchedule {
   @OneToMany(() => CallRun, (callRun) => callRun.schedule)
   callRuns: CallRun[];
 
+  // @Column({ name: 'start_date', type: 'date', nullable: true })
+  // startDate?: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;
 
