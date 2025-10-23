@@ -9,6 +9,7 @@ import { CallScriptsService } from './call-scripts.service';
 import { PatientsService } from 'src/patients/patients.service';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { CallMetricsService } from 'src/calls/call-metrics.service';
+import { ScriptStatus } from './enums/call-scripts.enum';
 
 @Injectable()
 export class CallScriptUtilsService {
@@ -88,6 +89,13 @@ export class CallScriptUtilsService {
     });
 
     return exists;
+  }
+
+  async checkScriptActive(id: string, organizationId: string) {
+    const script = await this.callScriptRepository.findOne({
+      where: { id, organization_id: organizationId },
+    });
+    return script?.status === ScriptStatus.ACTIVE;
   }
 
   async isScriptAssignedToPatient(

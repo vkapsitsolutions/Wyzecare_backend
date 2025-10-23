@@ -155,6 +155,15 @@ export class CallSchedulesService {
       throw new NotFoundException(`Call script not found with id ${script_id}`);
     }
 
+    const scriptActive = await this.callScriptUtilsService.checkScriptActive(
+      script_id,
+      organizationId,
+    );
+
+    if (!scriptActive) {
+      throw new BadRequestException(`Call script is not active`);
+    }
+
     // check script is assigned to patient or not
     const scriptAssignedToPatient =
       await this.callScriptUtilsService.isScriptAssignedToPatient(
@@ -401,6 +410,15 @@ export class CallSchedulesService {
         throw new NotFoundException(
           `Call script not found with id ${script_id}`,
         );
+      }
+
+      const scriptActive = await this.callScriptUtilsService.checkScriptActive(
+        script_id,
+        organizationId,
+      );
+
+      if (!scriptActive) {
+        throw new BadRequestException(`Call script is not active`);
       }
     }
 
