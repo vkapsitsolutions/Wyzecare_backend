@@ -155,6 +155,15 @@ export class CallSchedulesService {
       throw new NotFoundException(`Call script not found with id ${script_id}`);
     }
 
+    const scriptActive = await this.callScriptUtilsService.checkScriptActive(
+      script_id,
+      organizationId,
+    );
+
+    if (!scriptActive) {
+      throw new BadRequestException(`Call script is not active`);
+    }
+
     // check script is assigned to patient or not
     const scriptAssignedToPatient =
       await this.callScriptUtilsService.isScriptAssignedToPatient(
@@ -401,6 +410,15 @@ export class CallSchedulesService {
         throw new NotFoundException(
           `Call script not found with id ${script_id}`,
         );
+      }
+
+      const scriptActive = await this.callScriptUtilsService.checkScriptActive(
+        script_id,
+        organizationId,
+      );
+
+      if (!scriptActive) {
+        throw new BadRequestException(`Call script is not active`);
       }
     }
 
@@ -935,6 +953,25 @@ export class CallSchedulesService {
 
     this.logger.log(
       `Deleted call schedules for patient id: ${patientId} on patient deletion`,
+    );
+  }
+
+  async deactivateSchedulesForScript(scriptId: string) {
+    const schedules = await this.callScheduleRepository.find({
+      where: { script_id: scriptId, status: ScheduleStatus.ACTIVE },
+    });
+
+    for (const schedule of schedules) {
+      schedule.status = ScheduleStatus.INACTIVE;
+      schedule.next_scheduled_at = null;
+
+      await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
+
+      await this.callScheduleRepository.save(schedule);
+    }
+
+    this.logger.log(
+      `Deactivated call schedules for script id: ${scriptId} on script deactivation`,
     );
   }
 }

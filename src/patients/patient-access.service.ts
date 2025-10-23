@@ -177,4 +177,35 @@ export class PatientAccessService {
       count,
     };
   }
+
+  async getUsersWithAccessToPatient(patientId: string, organizationId: string) {
+    const users = await this.userRepository.find({
+      where: {
+        accessiblePatients: { id: patientId },
+      },
+      relations: { role: true },
+    });
+
+    const adminUsers = await this.userRepository.find({
+      where: {
+        role: {
+          slug: RoleName.ADMINISTRATOR,
+        },
+        organization_id: organizationId,
+      },
+      relations: { role: true },
+    });
+
+    // Combine and remove duplicates
+    const allUsersMap = new Map<string, User>();
+    users.forEach((user) => allUsersMap.set(user.id, user));
+    adminUsers.forEach((user) => allUsersMap.set(user.id, user));
+
+    const allUsers = Array.from(allUsersMap.values());
+
+    return {
+      success: true,
+      users: allUsers,
+    };
+  }
 }

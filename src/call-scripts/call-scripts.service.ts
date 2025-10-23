@@ -19,7 +19,7 @@ import { ListCallScriptDto } from './dto/list-call-scripts.dto';
 import { TestCallDto } from './dto/test-call.dto';
 import { InitiateCallPayload } from 'src/ai-calling/payloads/initiate-call.payload';
 import { AiCallingService } from 'src/ai-calling/ai-calling.service';
-import { ScriptCategory } from './enums/call-scripts.enum';
+import { ScriptCategory, ScriptStatus } from './enums/call-scripts.enum';
 import { AssignCallScriptToPatientsDto } from './dto/assign-script.dto';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { PatientsService } from 'src/patients/patients.service';
@@ -30,6 +30,7 @@ import {
   AuditPayload,
 } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
+import { CallSchedulesService } from 'src/call-schedules/call-schedules.service';
 
 @Injectable()
 export class CallScriptsService {
@@ -47,6 +48,8 @@ export class CallScriptsService {
     private readonly callScriptUtilsService: CallScriptUtilsService,
 
     private readonly auditLogsService: AuditLogsService,
+
+    private readonly callSchedulesService: CallSchedulesService,
   ) {}
 
   async checkSlugExists(slug: string, orgId: string, excludeId?: string) {
@@ -301,6 +304,12 @@ export class CallScriptsService {
 
     // --- SAVE SCRIPT ---
     const updatedScript = await this.callScriptRepository.save(callScript);
+
+    if (updatedScript.status === ScriptStatus.INACTIVE) {
+      await this.callSchedulesService.deactivateSchedulesForScript(
+        updatedScript.id,
+      );
+    }
 
     const payload: AuditPayload = {
       before: beforeUpdate,
