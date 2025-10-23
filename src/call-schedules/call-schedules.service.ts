@@ -937,4 +937,23 @@ export class CallSchedulesService {
       `Deleted call schedules for patient id: ${patientId} on patient deletion`,
     );
   }
+
+  async deactivateSchedulesForScript(scriptId: string) {
+    const schedules = await this.callScheduleRepository.find({
+      where: { script_id: scriptId, status: ScheduleStatus.ACTIVE },
+    });
+
+    for (const schedule of schedules) {
+      schedule.status = ScheduleStatus.INACTIVE;
+      schedule.next_scheduled_at = null;
+
+      await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
+
+      await this.callScheduleRepository.save(schedule);
+    }
+
+    this.logger.log(
+      `Deactivated call schedules for script id: ${scriptId} on script deactivation`,
+    );
+  }
 }

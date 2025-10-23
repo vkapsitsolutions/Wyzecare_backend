@@ -811,4 +811,10 @@ export class PatientsService {
       totalPatients: totalCount,
     };
   }
+
+  async findPatientByIdInternal(id: string) {
+    const patient = await this.patientRepository.findOne({ where: { id } });
+
+    return patient;
+  }
 }

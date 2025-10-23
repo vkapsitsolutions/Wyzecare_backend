@@ -7,12 +7,16 @@ import { Alert } from './entities/alert.entity';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { CallsModule } from 'src/calls/calls.module';
 import { AlertMetricsService } from './alert-metrics.service';
+import { EmailModule } from 'src/email/email.module';
+import { PatientsModule } from 'src/patients/patients.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Alert, AlertHistory]),
     forwardRef(() => SubscriptionsModule),
     forwardRef(() => CallsModule),
+    EmailModule,
+    forwardRef(() => PatientsModule),
   ],
   providers: [AlertsService, AlertMetricsService],
   controllers: [AlertsController],

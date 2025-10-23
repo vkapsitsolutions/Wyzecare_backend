@@ -17,6 +17,12 @@ import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { UpdateAlertStatusDto } from './dto/update-status.dto';
 import { AlertWebhookPayload } from 'src/webhooks/types/alert-webhook-payload';
 import { CallsService } from 'src/calls/calls.service';
+import { EmailService } from 'src/email/email.service';
+import { PatientAccessService } from 'src/patients/patient-access.service';
+import { DYNAMIC_TEMPLATES } from 'src/email/templates/email-templates.enum';
+import { ALERT_SEVERITY_COLORS } from 'src/email/types/send-mail.payload';
+import { PatientsService } from 'src/patients/patients.service';
+import { ConfigService } from '@nestjs/config';
 
 export interface CreateAlertPayload {
   organizationId: string;
@@ -51,6 +57,15 @@ export class AlertsService {
 
     @Inject(forwardRef(() => CallsService))
     private readonly callsService: CallsService,
+
+    private readonly emailService: EmailService,
+
+    private readonly patientAccessService: PatientAccessService,
+
+    @Inject(forwardRef(() => PatientsService))
+    private readonly patientsService: PatientsService,
+
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -93,6 +108,38 @@ export class AlertsService {
       });
 
       await historyRepo.save(history);
+
+      const patient = await this.patientsService.findPatientByIdInternal(
+        payload.patientId,
+      );
+
+      const { users: accessibleUsers } =
+        await this.patientAccessService.getUsersWithAccessToPatient(
+          payload.patientId,
+          payload.organizationId,
+        );
+
+      for (const user of accessibleUsers) {
+        // Notify each user about the new alert
+        await this.emailService.sendMail(
+          user.email,
+          {
+            app_name: 'WyzeCare',
+            recipient_name: user.fullName,
+            patient_name: patient?.fullName,
+            alert_type: payload.alertType,
+            severity: payload.severity,
+            severity_color: ALERT_SEVERITY_COLORS[payload.severity],
+            message: payload.message ?? 'No message provided',
+            trigger: payload.trigger ?? 'System Generated',
+            frontend_url: this.configService.getOrThrow<string>('FRONTEND_URL'),
+            timestamp: savedAlert.createdAt.toDateString(),
+            current_year: new Date().getFullYear(),
+            support_email: 'support@wyzecare.com',
+          },
+          DYNAMIC_TEMPLATES.ALERT_TEMPLATE_KEY,
+        );
+      }
 
       return savedAlert;
     });
