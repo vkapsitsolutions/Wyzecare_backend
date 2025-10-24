@@ -133,7 +133,7 @@ export class AlertsService {
             message: payload.message ?? 'No message provided',
             trigger: payload.trigger ?? 'System Generated',
             frontend_url: this.configService.getOrThrow<string>('FRONTEND_URL'),
-            timestamp: savedAlert.createdAt.toDateString(),
+            timestamp: savedAlert.createdAt.toISOString(),
             current_year: new Date().getFullYear(),
             support_email: 'support@wyzecare.com',
           },
