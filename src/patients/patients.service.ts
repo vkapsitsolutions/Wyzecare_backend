@@ -49,6 +49,7 @@ export class PatientsService {
   async findByPatientIdNumber(patientIdNumber: string) {
     return this.patientRepository.findOne({
       where: { patientId: patientIdNumber },
+      withDeleted: true,
     });
   }
 
@@ -816,5 +817,30 @@ export class PatientsService {
     const patient = await this.patientRepository.findOne({ where: { id } });
 
     return patient;
+  }
+
+  async checkForDuplicateNumber(phoneNumber: string, organizationId: string) {
+    const patientWithNumber = await this.patientRepository.find({
+      where: {
+        organization_id: organizationId,
+        contact: { primary_phone: phoneNumber },
+      },
+      relations: { contact: true },
+    });
+
+    if (patientWithNumber.length > 0) {
+      const patientNames = patientWithNumber.map((p) => p.fullName);
+      return {
+        success: true,
+        duplicate: true,
+        message: `Duplicate patient(s) found with phone number ${phoneNumber}: ${patientNames.join(', ')}. Do you want to proceed?`,
+      };
+    }
+
+    return {
+      success: true,
+      duplicate: false,
+      message: `No duplicate patient found with phone number ${phoneNumber}.`,
+    };
   }
 }
