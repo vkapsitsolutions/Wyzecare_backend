@@ -13,6 +13,7 @@ import {
   OneToOne,
   OneToMany,
   ManyToMany,
+  Index,
 } from 'typeorm';
 import { PatientContact } from './patient-contact.entity';
 import { PatientEmergencyContact } from './patient-emergency-contact.entity';
@@ -45,6 +46,7 @@ export class Patient {
   id!: string;
 
   @Column('uuid', { name: 'organization_id', nullable: false })
+  @Index()
   organization_id!: string;
 
   @ManyToOne(() => Organization, {
@@ -58,7 +60,6 @@ export class Patient {
     name: 'patient_id',
     type: 'varchar',
     length: 100,
-    unique: true,
     nullable: true,
   })
   patientId: string | null;

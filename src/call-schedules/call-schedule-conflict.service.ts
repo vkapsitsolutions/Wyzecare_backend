@@ -14,6 +14,7 @@ interface ConflictCheckParams {
   patientId: string;
   frequency: CallFrequency;
   timezone: string;
+  startDate: string; // YYYY-MM-DD
   timeWindowStart: string; // HH:mm
   timeWindowEnd: string; // HH:mm
   estimatedDurationSeconds: number;
@@ -37,6 +38,7 @@ export class CallScheduleConflictService {
       patientId,
       frequency,
       timezone,
+      startDate,
       timeWindowStart,
       timeWindowEnd,
       estimatedDurationSeconds,
@@ -66,6 +68,7 @@ export class CallScheduleConflictService {
     const newScheduleWindows = this.generateCallWindows(
       frequency,
       timezone,
+      startDate,
       timeWindowStart,
       timeWindowEnd,
       estimatedDurationSeconds,
@@ -79,6 +82,7 @@ export class CallScheduleConflictService {
       const existingWindows = this.generateCallWindows(
         existingSchedule.frequency,
         existingSchedule.timezone,
+        existingSchedule.startDate || moment.tz(timezone).format('YYYY-MM-DD'),
         existingSchedule.time_window_start,
         existingSchedule.time_window_end,
         existingSchedule.estimated_duration_seconds,
@@ -104,9 +108,13 @@ export class CallScheduleConflictService {
   /**
    * Generate all potential call time windows for a schedule over a period
    */
+  /**
+   * Generate all potential call time windows for a schedule over a period
+   */
   private generateCallWindows(
     frequency: CallFrequency,
     timezone: string,
+    startDate: string,
     timeWindowStart: string,
     timeWindowEnd: string,
     estimatedDurationSeconds: number,
@@ -119,19 +127,72 @@ export class CallScheduleConflictService {
     const endDate = now.clone().add(daysToCheck, 'days');
     const [hour, minute] = timeWindowStart.split(':').map(Number);
 
-    let currentDate = now
-      .clone()
+    let currentDate = moment
+      .tz(startDate, timezone)
       .hour(hour)
       .minute(minute)
       .second(0)
       .millisecond(0);
 
-    // If the first occurrence is in the past, advance to the next one
-    if (currentDate.isSameOrBefore(now)) {
-      currentDate = this.getNextOccurrence(currentDate, frequency);
+    // NEW: Direct calculation to skip to first future occurrence (replaces the while loop)
+    if (currentDate.isBefore(now)) {
+      const initial = currentDate.clone(); // Anchor to original startDate + time
+      const delta = now.diff(initial, 'days'); // Days from initial to now
+
+      switch (frequency) {
+        case CallFrequency.DAILY:
+          // For daily: advance to the next full day after now
+          currentDate = now
+            .clone()
+            .add(1, 'day')
+            .hour(hour)
+            .minute(minute)
+            .second(0)
+            .millisecond(0);
+          break;
+        case CallFrequency.WEEKLY: {
+          // For weekly: find weeks from initial to now, round up to next occurrence
+          const weeksFromInitial = Math.ceil(delta / 7);
+          currentDate = initial.clone().add(weeksFromInitial, 'weeks');
+          if (currentDate.isBefore(now)) {
+            currentDate.add(1, 'week');
+          }
+          break;
+        }
+        case CallFrequency.BI_WEEKLY: {
+          // For bi-weekly: similar, but every 14 days
+          const biWeeksFromInitial = Math.ceil(delta / 14);
+          currentDate = initial.clone().add(biWeeksFromInitial * 2, 'weeks');
+          if (currentDate.isBefore(now)) {
+            currentDate.add(2, 'weeks');
+          }
+          break;
+        }
+        case CallFrequency.MONTHLY: {
+          // For monthly: use Moment's month addition (handles variable month lengths)
+          let monthsFromInitial = now.diff(initial, 'months');
+          if (now.date() < initial.date()) {
+            monthsFromInitial--; // Adjust if now's day is before initial's day in the month
+          }
+          currentDate = initial.clone().add(monthsFromInitial + 1, 'months'); // +1 to ensure >= now
+          if (currentDate.isBefore(now)) {
+            currentDate.add(1, 'month');
+          }
+          break;
+        }
+        default:
+          // Fallback to daily
+          currentDate = now
+            .clone()
+            .add(1, 'day')
+            .hour(hour)
+            .minute(minute)
+            .second(0)
+            .millisecond(0);
+      }
     }
 
-    // Generate occurrences based on frequency
+    // Generate occurrences based on frequency (unchanged)
     while (currentDate.isBefore(endDate)) {
       // For each occurrence, generate windows for all potential attempts
       const attemptWindows = this.generateAttemptWindows(

@@ -71,7 +71,7 @@ export class CreateCallScheduleDto {
 
   @IsOptional()
   @IsDateString()
-  start_date: string;
+  startDate: string;
 
   @IsOptional()
   @IsString()

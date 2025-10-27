@@ -46,9 +46,9 @@ export class PatientsService {
     private readonly callSchedulesService: CallSchedulesService,
   ) {}
 
-  async findByPatientIdNumber(patientIdNumber: string) {
+  async findByPatientIdNumber(patientIdNumber: string, organizationId: string) {
     return this.patientRepository.findOne({
-      where: { patientId: patientIdNumber },
+      where: { patientId: patientIdNumber, organization_id: organizationId },
       withDeleted: true,
     });
   }
@@ -256,6 +256,9 @@ export class PatientsService {
 
     await this.patientRepository.softDelete(patient.id);
 
+    patient.deleted_by_id = loggedInUser.id;
+    await this.patientRepository.save(patient);
+
     await this.callSchedulesService.deleteSchedulesWhenPatientIsDeleted(
       patientId,
     );
@@ -327,7 +330,10 @@ export class PatientsService {
 
       // If incoming patientId is different, ensure uniqueness
       if (patientId && patient.patientId !== patientId) {
-        const existingPatient = await this.findByPatientIdNumber(patientId);
+        const existingPatient = await this.findByPatientIdNumber(
+          patientId,
+          organizationId,
+        );
         if (existingPatient && existingPatient.id !== patient.id) {
           throw new ConflictException(
             `Patient with ID ${patientId} already exists`,
@@ -391,7 +397,10 @@ export class PatientsService {
     }
 
     if (patientId) {
-      const existingPatient = await this.findByPatientIdNumber(patientId);
+      const existingPatient = await this.findByPatientIdNumber(
+        patientId,
+        organizationId,
+      );
       if (existingPatient) {
         throw new ConflictException(
           `Patient with ID ${patientId} already exists`,
