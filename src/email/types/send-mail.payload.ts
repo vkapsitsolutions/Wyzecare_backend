@@ -25,7 +25,7 @@ export interface MailPayload {
   recipient_name?: string;
   patient_name?: string;
   alert_type?: string;
-  severity?: AlertSeverity;
+  severity?: AlertSeverity | string;
   /** Hex color string (e.g. "#ef4444") */
   severity_color?: string;
   message?: string;

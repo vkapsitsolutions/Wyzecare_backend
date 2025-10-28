@@ -23,6 +23,7 @@ import { DYNAMIC_TEMPLATES } from 'src/email/templates/email-templates.enum';
 import { ALERT_SEVERITY_COLORS } from 'src/email/types/send-mail.payload';
 import { PatientsService } from 'src/patients/patients.service';
 import { ConfigService } from '@nestjs/config';
+import { capitalize } from 'src/common/helpers/capitalize';
 
 export interface CreateAlertPayload {
   organizationId: string;
@@ -127,15 +128,17 @@ export class AlertsService {
             app_name: 'WyzeCare',
             recipient_name: user.fullName,
             patient_name: patient?.fullName,
-            alert_type: payload.alertType,
-            severity: payload.severity,
+            alert_type: capitalize(payload.alertType),
+            severity: capitalize(payload.severity),
             severity_color: ALERT_SEVERITY_COLORS[payload.severity],
             message: payload.message ?? 'No message provided',
             trigger: payload.trigger ?? 'System Generated',
             frontend_url: this.configService.getOrThrow<string>('FRONTEND_URL'),
-            timestamp: savedAlert.createdAt.toISOString(),
+            timestamp: `${savedAlert.createdAt.toLocaleString('en-US', {
+              timeZone: 'UTC',
+            })} UTC`,
             current_year: new Date().getFullYear(),
-            support_email: 'support@wyzecare.com',
+            support_email: 'support@wyze.care',
           },
           DYNAMIC_TEMPLATES.ALERT_TEMPLATE_KEY,
         );
