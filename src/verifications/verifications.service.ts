@@ -103,7 +103,7 @@ export class VerificationsService {
           current_year: new Date().getFullYear(),
           expiry_minutes: expiryMinutes,
           otp,
-          support_email: 'support@example.com',
+          support_email: 'support@wyze.care',
         },
         DYNAMIC_TEMPLATES.OTP_TEMPLATE_KEY,
       );
@@ -262,10 +262,10 @@ export class VerificationsService {
         normalizedEmail,
         {
           app_name: 'WyzeCare',
-          current_year: 2025,
+          current_year: new Date().getFullYear(),
           expiry_minutes: this.RESET_TOKEN_EXPIRY_MINUTES,
           reset_link: resetLink,
-          support_email: 'support@example.com',
+          support_email: 'support@wyze.care',
         },
         DYNAMIC_TEMPLATES.PASSWORD_RESET_TEMPLATE_KEY,
       );
