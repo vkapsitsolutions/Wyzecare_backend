@@ -256,14 +256,6 @@ export class AlertsService {
    * Find alerts with pagination and filters.
    * Includes patient relation for display purposes.
    */
-  /**
-   * Find alerts with pagination and filters.
-   * Includes patient relation for display purposes.
-   */
-  /**
-   * Find alerts with pagination and filters.
-   * Includes patient relation for display purposes.
-   */
   async findAlerts(getAlertsDto: GetAlertsDto, loggedInUser: User) {
     const {
       limit,
@@ -282,6 +274,7 @@ export class AlertsService {
         organizationId: loggedInUser.organization_id,
       })
       .leftJoinAndSelect('alert.patient', 'patient')
+      .andWhere('(patient.deleted_at IS NULL)') // <-- ADDED
       .orderBy('alert.createdAt', 'DESC');
 
     if (status) {
@@ -332,12 +325,7 @@ export class AlertsService {
       qb.andWhere('alert.patientId = :patientId', { patientId });
     }
 
-    // user patient access check: restrict to patients the user has access to,
-    // unless the user is an administrator.
     if (loggedInUser && loggedInUser.role?.slug !== RoleName.ADMINISTRATOR) {
-      // join the patient -> usersWithAccess relation and require the logged-in user id
-      // to be present. This turns the results into only alerts for patients the user
-      // has explicit access to.
       qb.innerJoin(
         'patient.usersWithAccess',
         'userAccess',
@@ -354,7 +342,6 @@ export class AlertsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    // Base query for counts, restricted by organization and user access if not admin
     const createCountQb = (status: AlertStatus) => {
       const countQb = this.alertsRepository
         .createQueryBuilder('alert')
@@ -362,6 +349,7 @@ export class AlertsService {
         .where('alert.organization_id = :organizationId', {
           organizationId: loggedInUser.organization_id,
         })
+        .andWhere('(patient.id IS NULL OR patient.deleted_at IS NULL)')
         .andWhere('alert.status = :status', { status });
 
       if (severity) {
