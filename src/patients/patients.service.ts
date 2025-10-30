@@ -238,11 +238,10 @@ export class PatientsService {
       where: { id: patientId },
     });
 
-    if (!patient) {
+    if (!patient)
       throw new BadRequestException(
         `Patient with ID ${patientId} does not exist`,
       );
-    }
 
     const canEditPatient =
       await this.patientAccessService.canAccessAndEditPatient(
@@ -250,14 +249,12 @@ export class PatientsService {
         patient,
       );
 
-    if (!canEditPatient) {
+    if (!canEditPatient)
       throw new ForbiddenException('You cannot delete this patient');
-    }
-
-    await this.patientRepository.softDelete(patient.id);
 
     patient.deleted_by_id = loggedInUser.id;
-    await this.patientRepository.save(patient);
+
+    await this.patientRepository.softRemove(patient);
 
     await this.callSchedulesService.deleteSchedulesWhenPatientIsDeleted(
       patientId,
@@ -276,10 +273,7 @@ export class PatientsService {
       device_info: req.headers['user-agent'],
     });
 
-    return {
-      success: true,
-      message: 'Patient deleted successfully',
-    };
+    return { success: true, message: 'Patient deleted successfully' };
   }
 
   async upsertPatient(
