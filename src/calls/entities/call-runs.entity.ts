@@ -15,6 +15,7 @@ import { Patient } from 'src/patients/entities/patient.entity';
 import { CallScript } from 'src/call-scripts/entities/call-script.entity';
 import { CallRunStatus } from '../enums/calls.enum';
 import { Call } from './call.entity';
+import { Alert } from 'src/alerts/entities/alert.entity';
 
 @Entity({ name: 'call_runs' })
 export class CallRun {
@@ -75,6 +76,9 @@ export class CallRun {
 
   @OneToMany(() => Call, (call) => call.call_run)
   calls: Call[];
+
+  @OneToMany(() => Alert, (alert) => alert.callRun)
+  alerts: Alert[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;
