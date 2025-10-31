@@ -9,6 +9,7 @@ import {
   Matches,
   IsPositive,
   Max,
+  IsDateString,
 } from 'class-validator';
 import {
   AgentGender,
@@ -63,10 +64,14 @@ export class CreateCallScheduleDto {
   time_window_end: string;
 
   // may be used later
-  //   @IsOptional()
-  //   @IsArray()
-  //   @IsNumber({}, { each: true })
-  //   preferred_days?: number[]; // [0..6] for days of week
+  // @IsOptional()
+  // @IsArray()
+  // @IsNumber({}, { each: true })
+  // preferred_days?: number[]; // [0..6] for days of week
+
+  @IsOptional()
+  @IsDateString()
+  startDate: string;
 
   @IsOptional()
   @IsString()

@@ -219,7 +219,7 @@ export class UserInvitationsService {
           invite_link: link,
           expiry_days: expiryDays,
           expires_at: expiresAt.toISOString(),
-          support_email: 'support@wyzecare.com',
+          support_email: 'support@wyze.care',
           current_year: new Date().getFullYear(),
         },
         DYNAMIC_TEMPLATES.INVITATION_TEMPLATE_KEY,

@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -27,6 +29,7 @@ import {
   AuditPayload,
 } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
+import { CallScheduleConflictService } from './call-schedule-conflict.service';
 
 export interface GetSchedulesQuery {
   page?: number;
@@ -59,8 +62,10 @@ export class CallSchedulesService {
     @InjectRepository(CallSchedule)
     private readonly callScheduleRepository: Repository<CallSchedule>,
 
+    @Inject(forwardRef(() => PatientsService))
     private readonly patientsService: PatientsService,
 
+    @Inject(forwardRef(() => CallScriptUtilsService))
     private readonly callScriptUtilsService: CallScriptUtilsService,
 
     private readonly callsService: CallsService,
@@ -69,10 +74,10 @@ export class CallSchedulesService {
 
     @InjectRepository(CallRun)
     private callRunRepository: Repository<CallRun>,
-    // @InjectRepository(Call)
-    // private callRepository: Repository<Call>,
 
     private readonly auditLogsService: AuditLogsService,
+
+    private readonly conflictService: CallScheduleConflictService,
   ) {}
 
   async create(
@@ -87,6 +92,11 @@ export class CallSchedulesService {
       retry_interval_minutes,
       time_window_start,
       time_window_end,
+      frequency,
+      timezone,
+      estimated_duration_seconds,
+      max_attempts,
+      startDate,
     } = createCallScheduleDto;
 
     // Validate retry_interval_minutes if provided
@@ -103,6 +113,14 @@ export class CallSchedulesService {
       throw new BadRequestException(
         'time_window_start must be before time_window_end',
       );
+    }
+
+    // Validate startDate if provided
+    if (startDate) {
+      const startDateMoment = moment.tz(startDate, timezone);
+      if (!startDateMoment.isValid()) {
+        throw new BadRequestException('Invalid startDate format');
+      }
     }
 
     const patientExists = await this.patientsService.checkPatientExists(
@@ -146,7 +164,15 @@ export class CallSchedulesService {
       throw new NotFoundException(`Call script not found with id ${script_id}`);
     }
 
-    // check script is assigned to patient or not
+    const scriptActive = await this.callScriptUtilsService.checkScriptActive(
+      script_id,
+      organizationId,
+    );
+
+    if (!scriptActive) {
+      throw new BadRequestException(`Call script is not active`);
+    }
+
     const scriptAssignedToPatient =
       await this.callScriptUtilsService.isScriptAssignedToPatient(
         patient_id,
@@ -157,6 +183,21 @@ export class CallSchedulesService {
       throw new BadRequestException(`Call script not assigned to patient`);
     }
 
+    // Check for scheduling conflicts - ONLY for ACTIVE schedules
+    if (createCallScheduleDto.status === ScheduleStatus.ACTIVE) {
+      await this.conflictService.checkForConflicts({
+        patientId: patient_id,
+        frequency,
+        timezone,
+        startDate,
+        timeWindowStart: time_window_start,
+        timeWindowEnd: time_window_end,
+        estimatedDurationSeconds: estimated_duration_seconds,
+        maxAttempts: max_attempts,
+        retryIntervalMinutes: retry_interval_minutes,
+      });
+    }
+
     const schedule = this.callScheduleRepository.create({
       ...createCallScheduleDto,
       organization_id: organizationId,
@@ -164,17 +205,16 @@ export class CallSchedulesService {
       updated_by_id: loggedInUser.id,
     });
 
-    const scheduleStatus = schedule.status; // ACTIVE | INACTIVE | PAUSED
+    const scheduleStatus = schedule.status;
 
     if (scheduleStatus === ScheduleStatus.ACTIVE) {
       schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
     }
 
-    await this.callScheduleRepository.save(schedule);
+    const savedSchedule = await this.callScheduleRepository.save(schedule);
 
     if (scheduleStatus === ScheduleStatus.ACTIVE) {
-      // create upcoming call
-      await this.callsService.createCallRunFromSchedule(schedule);
+      await this.callsService.createCallRunFromSchedule(savedSchedule);
     }
 
     await this.patientsService.updatePatientStatus(patient_id);
@@ -184,10 +224,10 @@ export class CallSchedulesService {
       actor_id: loggedInUser.id,
       role: loggedInUser.role?.slug,
       action: AuditAction.CALL_SCHEDULED,
-      module_id: schedule.id,
+      module_id: savedSchedule.id,
       module_name: 'Call Schedule',
-      message: `Created new call schedule with id: ${schedule.id}`,
-      payload: { after: schedule }, // Added info
+      message: `Created new call schedule with id: ${savedSchedule.id}`,
+      payload: { after: savedSchedule },
       ip_address: req.ip,
       device_info: req.headers['user-agent'],
     });
@@ -376,10 +416,18 @@ export class CallSchedulesService {
           `Call script not found with id ${script_id}`,
         );
       }
+
+      const scriptActive = await this.callScriptUtilsService.checkScriptActive(
+        script_id,
+        organizationId,
+      );
+
+      if (!scriptActive) {
+        throw new BadRequestException(`Call script is not active`);
+      }
     }
 
     if (patient_id && script_id) {
-      // check script is assigned to patient or not
       const scriptAssignedToPatient =
         await this.callScriptUtilsService.isScriptAssignedToPatient(
           patient_id,
@@ -391,25 +439,32 @@ export class CallSchedulesService {
       }
     }
 
-    Object.assign(schedule, updateCallScheduleDto);
-    schedule.updated_by_id = loggedInUser.id;
+    // Merge updates to get the final state for validation
+    const updatedSchedule = { ...schedule, ...updateCallScheduleDto };
 
-    // Handle next_scheduled_at based on (new) status
-    if (schedule.status === ScheduleStatus.ACTIVE) {
-      // Ensure required fields for active schedules
+    // Check if scheduling-related fields changed
+    const schedulingFieldsChanged =
+      updateCallScheduleDto.time_window_start !== undefined ||
+      updateCallScheduleDto.time_window_end !== undefined ||
+      updateCallScheduleDto.frequency !== undefined ||
+      updateCallScheduleDto.timezone !== undefined ||
+      updateCallScheduleDto.startDate !== undefined;
+
+    // Validate and check conflicts if status is ACTIVE
+    if (updatedSchedule.status === ScheduleStatus.ACTIVE) {
       if (
-        !schedule.timezone ||
-        !schedule.time_window_start ||
-        !schedule.time_window_end
+        !updatedSchedule.timezone ||
+        !updatedSchedule.time_window_start ||
+        !updatedSchedule.time_window_end
       ) {
         throw new BadRequestException(
           'timezone, time_window_start, and time_window_end are required for ACTIVE schedules',
         );
       }
 
-      // Validate time window logic (start < end)
-      const startTime = moment(schedule.time_window_start, 'HH:mm');
-      const endTime = moment(schedule.time_window_end, 'HH:mm');
+      // Validate time window logic
+      const startTime = moment(updatedSchedule.time_window_start, 'HH:mm');
+      const endTime = moment(updatedSchedule.time_window_end, 'HH:mm');
       if (!startTime.isValid() || !endTime.isValid()) {
         throw new BadRequestException(
           'Invalid time format for time_window_start or time_window_end',
@@ -421,19 +476,57 @@ export class CallSchedulesService {
         );
       }
 
-      // Recalculate only if ACTIVE
-      schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
-    } else {
-      // For non-ACTIVE, clear next_scheduled_at
-      schedule.next_scheduled_at = null;
+      // Validate start_date if provided
+      if (updatedSchedule.startDate) {
+        const startDateMoment = moment.tz(
+          updatedSchedule.startDate,
+          updatedSchedule.timezone,
+        );
+        if (!startDateMoment.isValid()) {
+          throw new BadRequestException('Invalid startDate format');
+        }
+      }
+
+      // Check for conflicts
+      await this.conflictService.checkForConflicts({
+        patientId: updatedSchedule.patient_id,
+        frequency: updatedSchedule.frequency,
+        timezone: updatedSchedule.timezone,
+        startDate: updatedSchedule.startDate,
+        timeWindowStart: updatedSchedule.time_window_start,
+        timeWindowEnd: updatedSchedule.time_window_end,
+        estimatedDurationSeconds: updatedSchedule.estimated_duration_seconds,
+        maxAttempts: updatedSchedule.max_attempts,
+        retryIntervalMinutes: updatedSchedule.retry_interval_minutes,
+        excludeScheduleId: schedule.id,
+      });
     }
+
+    // Apply updates
+    Object.assign(schedule, updateCallScheduleDto);
+    schedule.updated_by_id = loggedInUser.id;
+
+    // Only recalculate next_scheduled_at if:
+    // 1. Status changed to ACTIVE AND scheduling fields changed, OR
+    // 2. Status is ACTIVE AND scheduling fields changed
+    const shouldRecalculateNextSchedule =
+      schedule.status === ScheduleStatus.ACTIVE &&
+      (schedulingFieldsChanged ||
+        (updateCallScheduleDto.status === ScheduleStatus.ACTIVE &&
+          beforeUpdate.status !== ScheduleStatus.ACTIVE));
+
+    if (shouldRecalculateNextSchedule) {
+      schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
+    }
+    // Note: We DON'T null out next_scheduled_at when status changes to INACTIVE/PAUSED
+    // This preserves the original schedule for when it's reactivated
 
     await this.callScheduleRepository.save(schedule);
 
-    // Delete existing pending calls (if any) - always, for consistency on updates
+    // Always delete existing pending calls when updating
     await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
 
-    // Create a new scheduled call only if status is ACTIVE and next_scheduled_at is set
+    // Create new scheduled call if ACTIVE
     if (
       schedule.status === ScheduleStatus.ACTIVE &&
       schedule.next_scheduled_at
@@ -545,36 +638,117 @@ export class CallSchedulesService {
   private calculateNextScheduledAt(schedule: CallSchedule): Date | null {
     const now = moment.tz(schedule.timezone);
     const [hour, minute] = schedule.time_window_start.split(':').map(Number);
-    const candidate = now
-      .clone()
-      .hour(hour)
-      .minute(minute)
-      .second(0)
-      .millisecond(0);
 
-    if (candidate.isSameOrBefore(now)) {
-      switch (schedule.frequency) {
-        case CallFrequency.DAILY:
-          candidate.add(1, 'day');
-          break;
-        case CallFrequency.WEEKLY:
-          candidate.add(1, 'week');
-          break;
-        case CallFrequency.BI_WEEKLY:
-          candidate.add(2, 'weeks');
-          break;
-        case CallFrequency.MONTHLY:
-          candidate.add(1, 'month');
-          break;
+    // Helper to set time on a moment in the schedule's timezone
+    const setTime = (m: moment.Moment) =>
+      m.clone().hour(hour).minute(minute).second(0).millisecond(0);
+
+    // If there's no startDate, fall back to behavior based on "now"
+    if (!schedule.startDate) {
+      const candidate = setTime(now);
+      if (candidate.isSameOrBefore(now)) {
+        switch (schedule.frequency) {
+          case CallFrequency.DAILY:
+            candidate.add(1, 'day');
+            break;
+          case CallFrequency.WEEKLY:
+            candidate.add(1, 'week');
+            break;
+          case CallFrequency.BI_WEEKLY:
+            candidate.add(2, 'weeks');
+            break;
+          case CallFrequency.MONTHLY:
+            candidate.add(1, 'month');
+            break;
+        }
       }
+      return candidate.toDate();
     }
 
-    // preferred days logic removed as not needed now
-    // if (schedule.preferred_days?.length) {
-    //   while (!schedule.preferred_days.includes(candidate.day())) {
-    //     candidate.add(1, 'day');
-    //   }
-    // }
+    // Build the canonical start occurrence (startDate at the configured time)
+    const start = setTime(moment.tz(schedule.startDate, schedule.timezone));
+
+    // If start is in the future, that's the next scheduled date
+    if (start.isAfter(now)) return start.toDate();
+
+    // Otherwise compute the smallest occurrence > now based on frequency.
+    let candidate: moment.Moment;
+
+    switch (schedule.frequency) {
+      case CallFrequency.DAILY: {
+        // Number of full days elapsed (floating). We need the next integer day > now.
+        const daysElapsed = now.diff(start, 'days', true);
+        const addDays = Math.floor(daysElapsed) + 1;
+        candidate = start.clone().add(addDays, 'days');
+        break;
+      }
+
+      case CallFrequency.WEEKLY: {
+        const weeksElapsed = now.diff(start, 'weeks', true);
+        const addWeeks = Math.floor(weeksElapsed) + 1;
+        candidate = start.clone().add(addWeeks, 'weeks');
+        break;
+      }
+
+      case CallFrequency.BI_WEEKLY: {
+        const weeksElapsed = now.diff(start, 'weeks', true);
+        const periodsElapsed = Math.floor(weeksElapsed / 2) + 1; // each period = 2 weeks
+        candidate = start.clone().add(periodsElapsed * 2, 'weeks');
+        break;
+      }
+
+      case CallFrequency.MONTHLY: {
+        // Calculate months difference and jump forward directly.
+        const monthsElapsed = now.diff(start, 'months', true);
+        const addMonths = Math.floor(monthsElapsed) + 1;
+
+        // To preserve the original day-of-month (or use last day if target month is shorter)
+        const target = start.clone().add(addMonths, 'months');
+        const desiredDay = start.date();
+        const daysInTarget = target.daysInMonth();
+        const dayToSet = Math.min(desiredDay, daysInTarget);
+
+        candidate = target.clone().date(dayToSet);
+        // Ensure time is set correctly (add may have changed time)
+        candidate = setTime(candidate);
+        // If, for any edge-case, candidate <= now, push one more month
+        if (candidate.isSameOrBefore(now)) {
+          const nextTarget = target.clone().add(1, 'month');
+          const nextDaysIn = nextTarget.daysInMonth();
+          candidate = setTime(
+            nextTarget.clone().date(Math.min(desiredDay, nextDaysIn)),
+          );
+        }
+        break;
+      }
+
+      default:
+        // Unknown frequency — fallback to using start + 1 day
+        candidate = start.clone().add(1, 'day');
+    }
+
+    // Safety: ensure candidate is strictly in the future
+    if (candidate.isSameOrBefore(now)) {
+      // As a last resort increment by one frequency step until > now (very rare)
+      while (candidate.isSameOrBefore(now)) {
+        switch (schedule.frequency) {
+          case CallFrequency.DAILY:
+            candidate.add(1, 'day');
+            break;
+          case CallFrequency.WEEKLY:
+            candidate.add(1, 'week');
+            break;
+          case CallFrequency.BI_WEEKLY:
+            candidate.add(2, 'weeks');
+            break;
+          case CallFrequency.MONTHLY:
+            candidate.add(1, 'month');
+            break;
+          default:
+            candidate.add(1, 'day');
+        }
+      }
+    }
 
     return candidate.toDate();
   }
@@ -834,11 +1008,9 @@ export class CallSchedulesService {
 
     for (const schedule of activeSchedulesForOrg) {
       schedule.status = ScheduleStatus.PAUSED;
-
-      schedule.next_scheduled_at = null;
+      // Don't null out next_scheduled_at - preserve it for when we resume
 
       await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
-
       await this.callScheduleRepository.save(schedule);
     }
 
@@ -857,11 +1029,20 @@ export class CallSchedulesService {
       });
 
     for (const schedule of pausedSchedulesForOrganization) {
-      schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
       schedule.status = ScheduleStatus.ACTIVE;
 
-      await this.callScheduleRepository.save(schedule);
+      // Only recalculate if next_scheduled_at is null or in the past
+      const now = moment.tz(schedule.timezone);
+      const nextScheduled = schedule.next_scheduled_at
+        ? moment(schedule.next_scheduled_at).tz(schedule.timezone)
+        : null;
 
+      if (!nextScheduled || nextScheduled.isSameOrBefore(now)) {
+        schedule.next_scheduled_at = this.calculateNextScheduledAt(schedule);
+      }
+      // Otherwise, preserve the existing next_scheduled_at
+
+      await this.callScheduleRepository.save(schedule);
       await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
 
       if (
@@ -874,6 +1055,40 @@ export class CallSchedulesService {
 
     this.logger.log(
       `Activated schedules for organization id: ${organizationId} on subscription activation`,
+    );
+  }
+
+  async deleteSchedulesWhenPatientIsDeleted(patientId: string) {
+    const schedules = await this.callScheduleRepository.find({
+      where: { patient_id: patientId },
+    });
+
+    for (const schedule of schedules) {
+      await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
+
+      await this.callScheduleRepository.softDelete({ id: schedule.id });
+    }
+
+    this.logger.log(
+      `Deleted call schedules for patient id: ${patientId} on patient deletion`,
+    );
+  }
+
+  async deactivateSchedulesForScript(scriptId: string) {
+    const schedules = await this.callScheduleRepository.find({
+      where: { script_id: scriptId, status: ScheduleStatus.ACTIVE },
+    });
+
+    for (const schedule of schedules) {
+      schedule.status = ScheduleStatus.INACTIVE;
+      // Don't null out next_scheduled_at - preserve the schedule
+
+      await this.callsService.deleteEmptyCallRunsBySchedule(schedule);
+      await this.callScheduleRepository.save(schedule);
+    }
+
+    this.logger.log(
+      `Deactivated call schedules for script id: ${scriptId} on script deactivation`,
     );
   }
 }

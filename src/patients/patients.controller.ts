@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -24,6 +25,7 @@ import { HipaaAuthorizationService } from 'src/patient-consents/services/hipaa-a
 import { PatientAccessGuard } from './guards/patient-access.guard';
 import { PatientAccessDecorator } from 'src/roles/decorators/patient-access.decorator';
 import { Request } from 'express';
+import { PhoneNumberDto } from './dto/phone-number.dto';
 
 @Controller('patients')
 export class PatientsController {
@@ -126,6 +128,33 @@ export class PatientsController {
       medicalInfoData,
       user,
       req,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PatientAccessGuard)
+  @PatientAccessDecorator('write')
+  @Delete(':patientId')
+  deletePatient(
+    @CurrentUser() user: User,
+    @Param('patientId', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    return this.patientsService.deletePatient(id, user, req);
+  }
+
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @Post('check-duplicate-phone')
+  checkDuplicatePhone(
+    @CurrentUser() user: User,
+    @Body() phoneNumberDto: PhoneNumberDto,
+  ) {
+    if (!user.organization_id)
+      throw new BadRequestException(
+        'Users does not belongs to any organization',
+      );
+    return this.patientsService.checkForDuplicateNumber(
+      phoneNumberDto.phoneNumber,
+      user.organization_id,
     );
   }
 }

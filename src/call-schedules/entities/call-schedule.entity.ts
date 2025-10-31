@@ -28,6 +28,7 @@ export class CallSchedule {
   id!: string;
 
   @Column('uuid', { name: 'organization_id', nullable: false })
+  @Index()
   organization_id!: string;
 
   @ManyToOne(() => Organization, {
@@ -129,6 +130,13 @@ export class CallSchedule {
 
   @OneToMany(() => CallRun, (callRun) => callRun.schedule)
   callRuns: CallRun[];
+
+  @Column({
+    name: 'start_date',
+    type: 'date',
+    default: () => 'CURRENT_DATE', // DB-side default
+  })
+  startDate: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   created_at!: Date;

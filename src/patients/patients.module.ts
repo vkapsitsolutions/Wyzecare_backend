@@ -13,6 +13,7 @@ import { UploadsModule } from 'src/uploads/uploads.module';
 import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { PatientMetricsService } from './patient-metrics.service';
 import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
+import { CallSchedulesModule } from 'src/call-schedules/call-schedules.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
     UploadsModule,
     forwardRef(() => CallScriptsModule),
     forwardRef(() => AuditLogsModule),
+    CallSchedulesModule,
   ],
   controllers: [PatientsController, PatientAccessController],
   providers: [PatientsService, PatientAccessService, PatientMetricsService],

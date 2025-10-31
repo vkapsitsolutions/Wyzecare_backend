@@ -453,7 +453,7 @@ export class CallsService {
   async getOneCall(id: string, patientId: string) {
     const callRun = await this.callRunRepository.findOne({
       where: { id, patient_id: patientId },
-      relations: { calls: true },
+      relations: { calls: true, alerts: true },
     });
 
     if (!callRun) {

@@ -17,6 +17,13 @@ import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { UpdateAlertStatusDto } from './dto/update-status.dto';
 import { AlertWebhookPayload } from 'src/webhooks/types/alert-webhook-payload';
 import { CallsService } from 'src/calls/calls.service';
+import { EmailService } from 'src/email/email.service';
+import { PatientAccessService } from 'src/patients/patient-access.service';
+import { DYNAMIC_TEMPLATES } from 'src/email/templates/email-templates.enum';
+import { ALERT_SEVERITY_COLORS } from 'src/email/types/send-mail.payload';
+import { PatientsService } from 'src/patients/patients.service';
+import { ConfigService } from '@nestjs/config';
+import { capitalize } from 'src/common/helpers/capitalize';
 
 export interface CreateAlertPayload {
   organizationId: string;
@@ -51,6 +58,15 @@ export class AlertsService {
 
     @Inject(forwardRef(() => CallsService))
     private readonly callsService: CallsService,
+
+    private readonly emailService: EmailService,
+
+    private readonly patientAccessService: PatientAccessService,
+
+    @Inject(forwardRef(() => PatientsService))
+    private readonly patientsService: PatientsService,
+
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -93,6 +109,40 @@ export class AlertsService {
       });
 
       await historyRepo.save(history);
+
+      const patient = await this.patientsService.findPatientByIdInternal(
+        payload.patientId,
+      );
+
+      const { users: accessibleUsers } =
+        await this.patientAccessService.getUsersWithAccessToPatient(
+          payload.patientId,
+          payload.organizationId,
+        );
+
+      for (const user of accessibleUsers) {
+        // Notify each user about the new alert
+        await this.emailService.sendMail(
+          user.email,
+          {
+            app_name: 'WyzeCare',
+            recipient_name: user.fullName,
+            patient_name: patient?.fullName,
+            alert_type: capitalize(payload.alertType),
+            severity: capitalize(payload.severity),
+            severity_color: ALERT_SEVERITY_COLORS[payload.severity],
+            message: payload.message ?? 'No message provided',
+            trigger: payload.trigger ?? 'System Generated',
+            frontend_url: this.configService.getOrThrow<string>('FRONTEND_URL'),
+            timestamp: `${savedAlert.createdAt.toLocaleString('en-US', {
+              timeZone: 'UTC',
+            })} UTC`,
+            current_year: new Date().getFullYear(),
+            support_email: 'support@wyze.care',
+          },
+          DYNAMIC_TEMPLATES.ALERT_TEMPLATE_KEY,
+        );
+      }
 
       return savedAlert;
     });
@@ -206,14 +256,6 @@ export class AlertsService {
    * Find alerts with pagination and filters.
    * Includes patient relation for display purposes.
    */
-  /**
-   * Find alerts with pagination and filters.
-   * Includes patient relation for display purposes.
-   */
-  /**
-   * Find alerts with pagination and filters.
-   * Includes patient relation for display purposes.
-   */
   async findAlerts(getAlertsDto: GetAlertsDto, loggedInUser: User) {
     const {
       limit,
@@ -232,6 +274,7 @@ export class AlertsService {
         organizationId: loggedInUser.organization_id,
       })
       .leftJoinAndSelect('alert.patient', 'patient')
+      .andWhere('(patient.deleted_at IS NULL)') // <-- ADDED
       .orderBy('alert.createdAt', 'DESC');
 
     if (status) {
@@ -282,12 +325,7 @@ export class AlertsService {
       qb.andWhere('alert.patientId = :patientId', { patientId });
     }
 
-    // user patient access check: restrict to patients the user has access to,
-    // unless the user is an administrator.
     if (loggedInUser && loggedInUser.role?.slug !== RoleName.ADMINISTRATOR) {
-      // join the patient -> usersWithAccess relation and require the logged-in user id
-      // to be present. This turns the results into only alerts for patients the user
-      // has explicit access to.
       qb.innerJoin(
         'patient.usersWithAccess',
         'userAccess',
@@ -304,7 +342,6 @@ export class AlertsService {
 
     const totalPages = Math.ceil(total / limit);
 
-    // Base query for counts, restricted by organization and user access if not admin
     const createCountQb = (status: AlertStatus) => {
       const countQb = this.alertsRepository
         .createQueryBuilder('alert')
@@ -312,6 +349,7 @@ export class AlertsService {
         .where('alert.organization_id = :organizationId', {
           organizationId: loggedInUser.organization_id,
         })
+        .andWhere('(patient.id IS NULL OR patient.deleted_at IS NULL)')
         .andWhere('alert.status = :status', { status });
 
       if (severity) {

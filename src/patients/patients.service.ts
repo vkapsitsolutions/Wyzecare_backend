@@ -28,6 +28,7 @@ import {
   AuditPayload,
 } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
+import { CallSchedulesService } from 'src/call-schedules/call-schedules.service';
 
 @Injectable()
 export class PatientsService {
@@ -41,11 +42,14 @@ export class PatientsService {
     private readonly callScriptUtilsService: CallScriptUtilsService,
 
     private readonly auditLogsService: AuditLogsService,
+
+    private readonly callSchedulesService: CallSchedulesService,
   ) {}
 
-  async findByPatientIdNumber(patientIdNumber: string) {
+  async findByPatientIdNumber(patientIdNumber: string, organizationId: string) {
     return this.patientRepository.findOne({
-      where: { patientId: patientIdNumber },
+      where: { patientId: patientIdNumber, organization_id: organizationId },
+      withDeleted: true,
     });
   }
 
@@ -229,6 +233,49 @@ export class PatientsService {
     };
   }
 
+  async deletePatient(patientId: string, loggedInUser: User, req: Request) {
+    const patient = await this.patientRepository.findOne({
+      where: { id: patientId },
+    });
+
+    if (!patient)
+      throw new BadRequestException(
+        `Patient with ID ${patientId} does not exist`,
+      );
+
+    const canEditPatient =
+      await this.patientAccessService.canAccessAndEditPatient(
+        loggedInUser.id,
+        patient,
+      );
+
+    if (!canEditPatient)
+      throw new ForbiddenException('You cannot delete this patient');
+
+    patient.deleted_by_id = loggedInUser.id;
+
+    await this.patientRepository.softRemove(patient);
+
+    await this.callSchedulesService.deleteSchedulesWhenPatientIsDeleted(
+      patientId,
+    );
+
+    await this.auditLogsService.createLog({
+      organization_id: loggedInUser.organization_id,
+      actor_id: loggedInUser.id,
+      role: loggedInUser.role?.slug,
+      action: AuditAction.PATIENT_DELETE,
+      module_id: patient.id,
+      module_name: 'Patient',
+      message: `Deleted patient. Patient name ${patient.fullName}, Patient id: ${patient.id}`,
+      payload: { before: patient },
+      ip_address: req.ip,
+      device_info: req.headers['user-agent'],
+    });
+
+    return { success: true, message: 'Patient deleted successfully' };
+  }
+
   async upsertPatient(
     dto: CreatePatientDto | UpdatePatientDto,
     organizationId: string,
@@ -277,7 +324,10 @@ export class PatientsService {
 
       // If incoming patientId is different, ensure uniqueness
       if (patientId && patient.patientId !== patientId) {
-        const existingPatient = await this.findByPatientIdNumber(patientId);
+        const existingPatient = await this.findByPatientIdNumber(
+          patientId,
+          organizationId,
+        );
         if (existingPatient && existingPatient.id !== patient.id) {
           throw new ConflictException(
             `Patient with ID ${patientId} already exists`,
@@ -341,7 +391,10 @@ export class PatientsService {
     }
 
     if (patientId) {
-      const existingPatient = await this.findByPatientIdNumber(patientId);
+      const existingPatient = await this.findByPatientIdNumber(
+        patientId,
+        organizationId,
+      );
       if (existingPatient) {
         throw new ConflictException(
           `Patient with ID ${patientId} already exists`,
@@ -760,6 +813,37 @@ export class PatientsService {
 
     return {
       totalPatients: totalCount,
+    };
+  }
+
+  async findPatientByIdInternal(id: string) {
+    const patient = await this.patientRepository.findOne({ where: { id } });
+
+    return patient;
+  }
+
+  async checkForDuplicateNumber(phoneNumber: string, organizationId: string) {
+    const patientWithNumber = await this.patientRepository.find({
+      where: {
+        organization_id: organizationId,
+        contact: { primary_phone: phoneNumber },
+      },
+      relations: { contact: true },
+    });
+
+    if (patientWithNumber.length > 0) {
+      const patientNames = patientWithNumber.map((p) => p.fullName);
+      return {
+        success: true,
+        duplicate: true,
+        message: `Duplicate patient(s) found with phone number ${phoneNumber}: ${patientNames.join(', ')}. Do you want to proceed?`,
+      };
+    }
+
+    return {
+      success: true,
+      duplicate: false,
+      message: `No duplicate patient found with phone number ${phoneNumber}.`,
     };
   }
 }
