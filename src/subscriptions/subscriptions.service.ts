@@ -86,7 +86,11 @@ export class SubscriptionsService {
     };
   }
 
-  async purchaseSubscription(loggedInUser: User, planId: string) {
+  async purchaseSubscription(
+    loggedInUser: User,
+    planId: string,
+    patientLicensesCount: number,
+  ) {
     const { data: plan } = await this.findOne(planId);
     if (!plan) {
       throw new HttpException('Plan not found', HttpStatus.NOT_FOUND);
@@ -197,7 +201,7 @@ export class SubscriptionsService {
       line_items: [
         {
           price: plan.stripe_monthly_price_id,
-          quantity: 1,
+          quantity: patientLicensesCount,
         },
       ],
       discounts: discounts,

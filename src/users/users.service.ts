@@ -38,6 +38,8 @@ import { Readable } from 'stream';
 import { AuditLogsService } from 'src/audit-logs/audit-logs.service';
 import { AuditAction } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
+import { OrganizationsService } from 'src/organizations/organizations.service';
+import { USER_TYPE } from './enums/user-type.enum';
 
 @Injectable()
 export class UsersService {
@@ -59,6 +61,8 @@ export class UsersService {
     private readonly rolesService: RolesService,
 
     private readonly auditLogsService: AuditLogsService,
+
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -131,6 +135,33 @@ export class UsersService {
 
       throw err;
     }
+  }
+
+  async selectUserType(userId: string, userType: USER_TYPE) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.user_type) {
+      throw new BadRequestException('User type already selected');
+    }
+
+    user.user_type = userType;
+
+    const organization = await this.organizationsService.createOrganization(
+      user,
+      userType,
+    );
+
+    user.organization_id = organization.id;
+
+    await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: 'User type selected successfully',
+    };
   }
 
   async findOrCreateSocialUser(createSocialDto: {
@@ -429,9 +460,10 @@ export class UsersService {
       });
 
       if (currentActiveUsers >= maxActiveUsers) {
-        throw new BadRequestException(
-          `You cannot have more than ${maxActiveUsers} active users as per current subscription`,
-        );
+        // max users check is removed temporarily
+        // throw new BadRequestException(
+        //   `You cannot have more than ${maxActiveUsers} active users as per current subscription`,
+        // );
       }
     }
 
@@ -572,9 +604,10 @@ export class UsersService {
           typeof maxActiveUsers === 'number'
         ) {
           if (activeNonAdminCount >= maxActiveUsers) {
-            throw new BadRequestException(
-              `You cannot have more than ${maxActiveUsers} active users as per current subscription`,
-            );
+            // max users check is removed temporarily
+            // throw new BadRequestException(
+            //   `You cannot have more than ${maxActiveUsers} active users as per current subscription`,
+            // );
           }
         }
 

@@ -35,6 +35,7 @@ import { UserUtilsService } from './users-utils.service';
 import { EditUserDto } from './dto/edit-user.dto';
 import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
 import { Request } from 'express';
+import { SelectUserTypeDto } from './dto/select-type.dto';
 
 @Controller('users')
 export class UsersController {
@@ -47,6 +48,18 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   register(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('select-type')
+  selectType(
+    @CurrentUser() user: User,
+    @Body() selectUserTypeDto: SelectUserTypeDto,
+  ) {
+    return this.usersService.selectUserType(
+      user.id,
+      selectUserTypeDto.userType,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

@@ -172,9 +172,10 @@ export class UserInvitationsService {
     }
 
     if (userCounts + newUsers > (subscriptionPlan?.max_users ?? 0)) {
-      throw new BadRequestException(
-        'Inviting these users would exceed the maximum allowed users for your subscription plan.',
-      );
+      // max users check is removed temporarily
+      // throw new BadRequestException(
+      //   'Inviting these users would exceed the maximum allowed users for your subscription plan.',
+      // );
     }
 
     const results: { email: string; status: string }[] = [];
@@ -307,9 +308,10 @@ export class UserInvitationsService {
     }
 
     if (!isAdminRole && userCounts + 1 > (subscriptionPlan?.max_users ?? 0)) {
-      throw new BadRequestException(
-        'Accepting this invitation would exceed the maximum allowed users for your subscription plan.',
-      );
+      // max users check is removed temporarily
+      // throw new BadRequestException(
+      //   'Accepting this invitation would exceed the maximum allowed users for your subscription plan.',
+      // );
     }
 
     // --- Create user and update invitation in a transaction to reduce race windows ---
@@ -335,9 +337,10 @@ export class UserInvitationsService {
           !isAdminRole &&
           userCountsTx + 1 > (subscriptionPlan?.max_users ?? 0)
         ) {
-          throw new BadRequestException(
-            'Accepting this invitation would exceed the maximum allowed users for your subscription plan.',
-          );
+          // max users check is removed temporarily
+          // throw new BadRequestException(
+          //   'Accepting this invitation would exceed the maximum allowed users for your subscription plan.',
+          // );
         }
 
         // Hash password (use bcrypt or argon2)
@@ -356,6 +359,7 @@ export class UserInvitationsService {
           invitation_accepted_at: currentDate,
           role: invitation.role,
           created_by: invitation.invited_by,
+          user_type: invitation.organization.organization_type,
         });
 
         // Save user using the transaction manager

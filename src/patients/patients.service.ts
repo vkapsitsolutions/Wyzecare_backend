@@ -29,6 +29,7 @@ import {
 } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
 import { CallSchedulesService } from 'src/call-schedules/call-schedules.service';
+import { OrganizationsService } from 'src/organizations/organizations.service';
 
 @Injectable()
 export class PatientsService {
@@ -44,6 +45,9 @@ export class PatientsService {
     private readonly auditLogsService: AuditLogsService,
 
     private readonly callSchedulesService: CallSchedulesService,
+
+    @Inject(forwardRef(() => OrganizationsService))
+    private readonly organizationsService: OrganizationsService,
   ) {}
 
   async findByPatientIdNumber(patientIdNumber: string, organizationId: string) {
@@ -260,6 +264,10 @@ export class PatientsService {
       patientId,
     );
 
+    await this.organizationsService.decrementUsedPatientLicenses(
+      patient.organization_id,
+    );
+
     await this.auditLogsService.createLog({
       organization_id: loggedInUser.organization_id,
       actor_id: loggedInUser.id,
@@ -383,6 +391,17 @@ export class PatientsService {
     }
 
     // creation logic below
+
+    // check patient licenses
+    const { available_patient_licenses } =
+      await this.organizationsService.getOrganizationLicenseUsage(
+        organizationId,
+      );
+
+    if (available_patient_licenses <= 0) {
+      throw new ForbiddenException('No available patient licenses');
+    }
+
     if (
       loggedInUser.role &&
       loggedInUser.role.slug !== RoleName.ADMINISTRATOR
@@ -421,6 +440,10 @@ export class PatientsService {
 
     await this.callScriptUtilsService.assignDefaultCallScriptsToPatient(
       savedPatient,
+    );
+
+    await this.organizationsService.incrementUsedPatientLicenses(
+      organizationId,
     );
 
     await this.auditLogsService.createLog({

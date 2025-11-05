@@ -14,6 +14,7 @@ import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { PatientMetricsService } from './patient-metrics.service';
 import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
 import { CallSchedulesModule } from 'src/call-schedules/call-schedules.module';
+import { OrganizationsModule } from 'src/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CallSchedulesModule } from 'src/call-schedules/call-schedules.module';
     forwardRef(() => CallScriptsModule),
     forwardRef(() => AuditLogsModule),
     CallSchedulesModule,
+    forwardRef(() => OrganizationsModule),
   ],
   controllers: [PatientsController, PatientAccessController],
   providers: [PatientsService, PatientAccessService, PatientMetricsService],
