@@ -137,12 +137,7 @@ export class UsersService {
     }
   }
 
-  async selectUserType(userId: string, userType: USER_TYPE) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
+  async selectUserType(user: User, userType: USER_TYPE) {
     if (user.user_type) {
       throw new BadRequestException('User type already selected');
     }
