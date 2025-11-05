@@ -151,6 +151,20 @@ export class UsersService {
 
     user.organization_id = organization.id;
 
+    if (user.role?.slug === RoleName.ADMINISTRATOR) {
+      const otherUsers = await this.userRepository.find({
+        where: {
+          organization_id: user.organization_id,
+          id: Not(user.id),
+        },
+      });
+
+      for (const otherUser of otherUsers) {
+        otherUser.user_type = userType;
+        await this.userRepository.save(otherUser);
+      }
+    }
+
     await this.userRepository.save(user);
 
     return {
