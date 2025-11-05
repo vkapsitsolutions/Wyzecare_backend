@@ -13,6 +13,7 @@ import {
   TimezoneEnum,
 } from '../enums/organization.enum';
 import { OrganizationSubscription } from 'src/subscriptions/entities/organization-subscription.entity';
+import { USER_TYPE } from 'src/users/enums/user-type.enum';
 
 @Entity({ name: 'organizations' })
 export class Organization {
@@ -78,6 +79,40 @@ export class Organization {
     nullable: true,
   })
   stripe_customer_id?: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: USER_TYPE,
+    name: 'organization_type',
+    default: USER_TYPE.NORMAL,
+  })
+  organization_type: USER_TYPE;
+
+  @Column({
+    name: 'licensed_patient_count',
+    type: 'int',
+    nullable: false,
+    default: 1,
+  })
+  licensed_patient_count!: number;
+
+  @Column({
+    name: 'used_patient_licenses',
+    type: 'int',
+    nullable: false,
+    default: 0,
+    comment: 'Total number of patient licenses purchased',
+  })
+  used_patient_licenses!: number;
+
+  @Column({
+    name: 'available_patient_licenses',
+    type: 'int',
+    nullable: false,
+    default: 0,
+    comment: 'Total number of patient licenses purchased',
+  })
+  available_patient_licenses!: number;
 
   @OneToMany(
     () => OrganizationSubscription,

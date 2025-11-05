@@ -4,7 +4,6 @@ import {
   Get,
   NotFoundException,
   Patch,
-  Post,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -15,6 +14,7 @@ import { UpdateConfigurationDto } from './dto/update-configuration.dto';
 import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
 import { Permission } from 'src/roles/enums/roles-permissions.enum';
+import { ActiveSubscriptionsGuard } from 'src/subscriptions/guards/active-subscriptions.guard';
 
 @Controller('organizations')
 export class OrganizationsController {
@@ -68,9 +68,13 @@ export class OrganizationsController {
     return this.organizationsService.getDateFormats();
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('temp/assign-scripts')
-  assignScripts() {
-    return this.organizationsService.assignDefaultScriptsToOrganizations();
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard)
+  @Get('patient-licenses')
+  getPatientLicenses(@CurrentUser() loggedInUser: User) {
+    if (!loggedInUser.organization_id)
+      throw new NotFoundException('User Organization not found');
+    return this.organizationsService.getOrganizationLicenseUsage(
+      loggedInUser.organization_id,
+    );
   }
 }

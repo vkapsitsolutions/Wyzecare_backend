@@ -17,6 +17,7 @@ import { Role } from 'src/roles/entities/role.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { GENDER } from 'src/common/types/gender.enum';
 import { Patient } from 'src/patients/entities/patient.entity'; // Adjust path as needed
+import { USER_TYPE } from '../enums/user-type.enum';
 
 @Entity()
 export class User {
@@ -29,6 +30,9 @@ export class User {
   @ManyToOne(() => Organization, { nullable: true })
   @JoinColumn({ name: 'organization_id' })
   organization?: Organization;
+
+  @Column({ type: 'enum', enum: USER_TYPE, nullable: true })
+  user_type: USER_TYPE;
 
   @Column()
   first_name: string;

@@ -18,7 +18,6 @@ export class PaymentWebhooksService {
     private configService: ConfigService,
     @InjectRepository(OrganizationSubscription)
     private orgSubscriptionsRepo: Repository<OrganizationSubscription>,
-
     private readonly callScheduleService: CallSchedulesService,
   ) {
     this.stripe = new Stripe(
@@ -61,7 +60,6 @@ export class PaymentWebhooksService {
         break;
       }
 
-      // case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         await this.updateSubscriptionInDb(subscription);
@@ -70,7 +68,7 @@ export class PaymentWebhooksService {
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        await this.updateSubscriptionInDb(subscription, true); // Handle cancel
+        await this.updateSubscriptionInDb(subscription, true);
         break;
       }
 
@@ -90,7 +88,6 @@ export class PaymentWebhooksService {
     });
 
     if (!sub) {
-      // Fallback to customer ID or metadata
       const stripeCustomerId = stripeSub.customer as string;
       sub = await this.orgSubscriptionsRepo.findOne({
         where: { stripe_customer_id: stripeCustomerId },
@@ -126,22 +123,33 @@ export class PaymentWebhooksService {
       }
     }
 
+    // Update subscription status
     sub.status = this.mapStripeStatusToEnum(stripeSub.status, isDeleted);
-    // Access periods from items (new API behavior)
+
+    // Extract quantity from subscription items (KEY CHANGE)
     const item = stripeSub.items?.data?.[0];
+
     if (item) {
+      // Update licensed patient count from Stripe quantity
+      const licensedPatientCount = item.quantity ?? 1;
+      sub.organization.licensed_patient_count = licensedPatientCount;
+
       sub.current_period_start = new Date(item.current_period_start * 1000);
       sub.current_period_end = new Date(item.current_period_end * 1000);
+
+      this.logger.log(
+        `Updated subscription for org ${sub.organization_id}: ${licensedPatientCount} licenses`,
+      );
     } else {
       // Fallback if no items (rare)
       sub.current_period_start = new Date(
         stripeSub.billing_cycle_anchor * 1000,
       );
-      // Estimate end based on billing cycle (e.g., +1 month for monthly)
       const endDate = new Date(sub.current_period_start);
-      endDate.setMonth(endDate.getMonth() + 1); // Assume monthly
+      endDate.setMonth(endDate.getMonth() + 1);
       sub.current_period_end = endDate;
     }
+
     sub.started_at = new Date(stripeSub.created * 1000);
     sub.ends_at = stripeSub.ended_at
       ? new Date(stripeSub.ended_at * 1000)
@@ -150,10 +158,9 @@ export class PaymentWebhooksService {
       ? new Date(stripeSub.canceled_at * 1000)
       : null;
     sub.auto_renew = !stripeSub.cancel_at_period_end;
-
     sub.stripe_subscription_id = stripeSub.id;
 
-    // handle active schedules as per the subscription status
+    // Handle active schedules based on subscription status
     if (sub.status === SubscriptionStatusEnum.ACTIVE) {
       await this.callScheduleService.activatePausedSchedules(
         sub.organization_id,
@@ -162,9 +169,15 @@ export class PaymentWebhooksService {
       await this.callScheduleService.pauseActiveSchedules(sub.organization_id);
     }
 
+    // Update organization stripe customer ID
     const stripeCustomerId = stripeSub.customer as string;
     sub.organization.stripe_customer_id = stripeCustomerId;
+
     await this.orgSubscriptionsRepo.save(sub);
+
+    this.logger.log(
+      `Subscription updated: org=${sub.organization_id}, status=${sub.status}, licenses=${sub.organization.licensed_patient_count}`,
+    );
   }
 
   private mapStripeStatusToEnum(
@@ -188,7 +201,7 @@ export class PaymentWebhooksService {
       case 'unpaid':
         return SubscriptionStatusEnum.EXPIRED;
       default:
-        return SubscriptionStatusEnum.PAUSED; // Fallback
+        return SubscriptionStatusEnum.PAUSED;
     }
   }
 }

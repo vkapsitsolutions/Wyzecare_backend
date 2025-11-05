@@ -9,6 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { SubscriptionPlan } from './subscription-plans.entity';
+import { numericToNumberTransformer } from 'src/common/helpers/numberic-to-number';
 
 export enum SubscriptionStatusEnum {
   ACTIVE = 'active',
@@ -57,6 +58,43 @@ export class OrganizationSubscription {
   })
   status!: SubscriptionStatusEnum;
 
+  // Custom price per license (for negotiated rates)
+  @Column({
+    name: 'custom_price_per_license',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: numericToNumberTransformer,
+    comment: 'Custom price per license if different from plan default',
+  })
+  custom_price_per_license?: number | null;
+
+  // Custom price id (for negotiated rates)
+  @Column({
+    name: 'custom_price_id',
+    type: 'varchar',
+    nullable: true,
+  })
+  custom_price_id?: string | null;
+
+  // Trial patient tracking
+  @Column({
+    name: 'trial_patient_used',
+    type: 'boolean',
+    default: false,
+    comment: 'Whether the free trial patient has been used',
+  })
+  trial_patient_used!: boolean;
+
+  @Column({
+    name: 'trial_ends_at',
+    type: 'timestamptz',
+    nullable: true,
+    comment: 'When the trial patient expires (1 month from creation)',
+  })
+  trial_ends_at?: Date | null;
+
   @Column({ name: 'started_at', type: 'timestamptz', nullable: false })
   started_at!: Date;
 
@@ -101,6 +139,7 @@ export class OrganizationSubscription {
     comment: "Billing cycle: 'monthly' or 'yearly'",
   })
   billing_cycle!: BillingCycleEnum;
+
   @Column({
     name: 'auto_renew',
     type: 'boolean',

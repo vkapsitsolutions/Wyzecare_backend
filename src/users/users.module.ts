@@ -14,6 +14,7 @@ import { EmailModule } from 'src/email/email.module';
 import { RolesModule } from 'src/roles/roles.module';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
+import { OrganizationsModule } from 'src/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
     RolesModule,
     SubscriptionsModule,
     AuditLogsModule,
+    OrganizationsModule,
   ],
   controllers: [UsersController, UserInvitationsController],
   providers: [UsersService, UserUtilsService, UserInvitationsService],

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   NotFoundException,
@@ -12,6 +13,7 @@ import { SubscriptionsService } from './subscriptions.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { User } from 'src/users/entities/user.entity';
+import { PurchaseSubscriptionDto } from './dto/purchase-subscriptions.dto';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -42,8 +44,13 @@ export class SubscriptionsController {
   purchaseSubscription(
     @CurrentUser() user: User,
     @Param('planId', ParseUUIDPipe) planId: string,
+    @Body() purchaseSubscriptionsDto: PurchaseSubscriptionDto,
   ) {
-    return this.subscriptionsService.purchaseSubscription(user, planId);
+    return this.subscriptionsService.purchaseSubscription(
+      user,
+      planId,
+      purchaseSubscriptionsDto.patientLicensesCount,
+    );
   }
 
   @Get('manage-subscription/customer-portal')
