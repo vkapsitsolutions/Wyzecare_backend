@@ -56,10 +56,7 @@ export class UsersController {
     @CurrentUser() user: User,
     @Body() selectUserTypeDto: SelectUserTypeDto,
   ) {
-    return this.usersService.selectUserType(
-      user.id,
-      selectUserTypeDto.userType,
-    );
+    return this.usersService.selectUserType(user, selectUserTypeDto.userType);
   }
 
   @UseGuards(JwtAuthGuard)
