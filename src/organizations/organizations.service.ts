@@ -130,48 +130,11 @@ export class OrganizationsService {
     const { totalPatients: patientCount } =
       await this.patientsService.getPatientCount(organizationId);
 
-    organization.used_patient_licenses = patientCount;
-    organization.available_patient_licenses =
-      organization.licensed_patient_count - patientCount;
-
-    await this.organizationsRepo.save(organization);
-
     return {
       licensed_patient_count: organization.licensed_patient_count,
-      used_patient_licenses: organization.used_patient_licenses,
-      available_patient_licenses: organization.available_patient_licenses,
+      used_patient_licenses: patientCount,
+      available_patient_licenses:
+        organization.licensed_patient_count - patientCount,
     };
-  }
-
-  async incrementUsedPatientLicenses(organizationId: string) {
-    const organization = await this.organizationsRepo.findOneBy({
-      id: organizationId,
-    });
-
-    if (!organization) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    organization.used_patient_licenses += 1;
-    organization.available_patient_licenses =
-      organization.licensed_patient_count - organization.used_patient_licenses;
-
-    await this.organizationsRepo.save(organization);
-  }
-
-  async decrementUsedPatientLicenses(organizationId: string) {
-    const organization = await this.organizationsRepo.findOneBy({
-      id: organizationId,
-    });
-
-    if (!organization) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    organization.used_patient_licenses -= 1;
-    organization.available_patient_licenses =
-      organization.licensed_patient_count - organization.used_patient_licenses;
-
-    await this.organizationsRepo.save(organization);
   }
 }

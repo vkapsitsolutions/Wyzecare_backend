@@ -290,4 +290,153 @@ export class SubscriptionsService {
       },
     };
   }
+
+  /**
+   * Add patient licenses to existing subscription
+   */
+  async addLicenses(
+    organizationId: string,
+    additionalLicenses: number,
+  ): Promise<any> {
+    if (additionalLicenses < 1) {
+      throw new BadRequestException('Must add at least 1 license');
+    }
+
+    const subscription = await this.orgSubscriptionsRepo.findOne({
+      where: {
+        organization_id: organizationId,
+        status: SubscriptionStatusEnum.ACTIVE,
+        stripe_subscription_id: Not(IsNull()),
+      },
+      relations: {
+        subscription_plan: true,
+        organization: true,
+      },
+    });
+
+    if (!subscription?.stripe_subscription_id) {
+      throw new BadRequestException('No active subscription found');
+    }
+
+    // Update Stripe subscription with new quantity
+    const newQuantity =
+      subscription.organization.licensed_patient_count + additionalLicenses;
+
+    try {
+      const stripeSubscription = await this.stripe.subscriptions.retrieve(
+        subscription.stripe_subscription_id,
+      );
+
+      await this.stripe.subscriptions.update(
+        subscription.stripe_subscription_id,
+        {
+          items: [
+            {
+              id: stripeSubscription.items.data[0].id,
+              quantity: newQuantity,
+            },
+          ],
+          proration_behavior: 'always_invoice',
+        },
+      );
+
+      return {
+        success: true,
+        message: `Successfully added ${additionalLicenses} license(s)`,
+        data: {
+          new_total_licenses: newQuantity,
+          added_licenses: additionalLicenses,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to add licenses', error);
+      throw new HttpException(
+        'Failed to update subscription',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Reduce patient licenses (takes effect at next billing cycle)
+   */
+  async reduceLicenses(
+    organizationId: string,
+    licenseReduction: number,
+  ): Promise<any> {
+    if (licenseReduction < 1) {
+      throw new BadRequestException('Must reduce at least 1 license');
+    }
+
+    const subscription = await this.orgSubscriptionsRepo.findOne({
+      where: {
+        organization_id: organizationId,
+        status: SubscriptionStatusEnum.ACTIVE,
+        stripe_subscription_id: Not(IsNull()),
+      },
+      relations: {
+        organization: true,
+      },
+    });
+
+    if (!subscription?.stripe_subscription_id) {
+      throw new BadRequestException('No active subscription found');
+    }
+
+    const newQuantity =
+      subscription.organization.licensed_patient_count - licenseReduction;
+
+    if (newQuantity < 1) {
+      throw new BadRequestException(
+        `Cannot reduce ${licenseReduction} licenses. Current licenses: ${subscription.organization.licensed_patient_count}, used licenses: ${licenseReduction}`,
+      );
+    }
+
+    // Check if reduction would leave insufficient licenses for current patients
+    const { used_patient_licenses: usedLicenses } =
+      await this.organizationsService.getOrganizationLicenseUsage(
+        organizationId,
+      );
+    if (newQuantity < usedLicenses) {
+      throw new BadRequestException(
+        `Cannot reduce to ${newQuantity} licenses. Currently using ${usedLicenses} licenses.`,
+      );
+    }
+
+    try {
+      const stripeSubscription = await this.stripe.subscriptions.retrieve(
+        subscription.stripe_subscription_id,
+      );
+
+      // Schedule the reduction for the end of the current period
+      await this.stripe.subscriptions.update(
+        subscription.stripe_subscription_id,
+        {
+          items: [
+            {
+              id: stripeSubscription.items.data[0].id,
+              quantity: newQuantity,
+            },
+          ],
+          proration_behavior: 'always_invoice',
+        },
+      );
+
+      return {
+        success: true,
+        message: `License reduction successful. You will be charged for ${newQuantity} licenses from the next billing cycle.`,
+        data: {
+          current_licenses: subscription.organization.licensed_patient_count,
+          new_licenses: newQuantity,
+          reduction: licenseReduction,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to reduce licenses', error);
+      throw new HttpException(
+        'Failed to update subscription',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

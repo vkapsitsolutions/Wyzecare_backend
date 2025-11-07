@@ -96,24 +96,6 @@ export class Organization {
   })
   licensed_patient_count!: number;
 
-  @Column({
-    name: 'used_patient_licenses',
-    type: 'int',
-    nullable: false,
-    default: 0,
-    comment: 'Total number of patient licenses purchased',
-  })
-  used_patient_licenses!: number;
-
-  @Column({
-    name: 'available_patient_licenses',
-    type: 'int',
-    nullable: false,
-    default: 0,
-    comment: 'Total number of patient licenses purchased',
-  })
-  available_patient_licenses!: number;
-
   @OneToMany(
     () => OrganizationSubscription,
     (subscription) => subscription.organization,
