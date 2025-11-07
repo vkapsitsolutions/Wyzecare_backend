@@ -90,7 +90,10 @@ export class PaymentWebhooksService {
     if (!sub) {
       const stripeCustomerId = stripeSub.customer as string;
       sub = await this.orgSubscriptionsRepo.findOne({
-        where: { stripe_customer_id: stripeCustomerId },
+        where: {
+          stripe_customer_id: stripeCustomerId,
+          status: SubscriptionStatusEnum.PENDING,
+        },
         relations: ['organization', 'subscription_plan'],
         order: { created_at: 'DESC' },
       });

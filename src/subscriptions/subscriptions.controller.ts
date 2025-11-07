@@ -14,6 +14,12 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { User } from 'src/users/entities/user.entity';
 import { PurchaseSubscriptionDto } from './dto/purchase-subscriptions.dto';
+import { ActiveSubscriptionsGuard } from './guards/active-subscriptions.guard';
+import { AddLicensesDto } from './dto/add-licences.dto';
+import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
+import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
+import { Permission } from 'src/roles/enums/roles-permissions.enum';
+import { ReduceLicensesDto } from './dto/reduce-licenses.dto';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -60,5 +66,37 @@ export class SubscriptionsController {
     if (!organizationId)
       throw new BadRequestException('User do not belongs to any organization');
     return this.subscriptionsService.getCustomerPortalUrl(organizationId);
+  }
+
+  @Post('add-licenses')
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SYSTEM_SETTINGS)
+  addLicenses(
+    @CurrentUser() user: User,
+    @Body() addLicensesDto: AddLicensesDto,
+  ) {
+    const organizationId = user.organization_id;
+    if (!organizationId)
+      throw new BadRequestException('User do not belongs to any organization');
+    return this.subscriptionsService.addLicenses(
+      organizationId,
+      addLicensesDto.additionalLicenses,
+    );
+  }
+
+  @Post('reduce-licenses')
+  @UseGuards(JwtAuthGuard, ActiveSubscriptionsGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SYSTEM_SETTINGS)
+  reduceLicenses(
+    @CurrentUser() user: User,
+    @Body() reduceLicenses: ReduceLicensesDto,
+  ) {
+    const organizationId = user.organization_id;
+    if (!organizationId)
+      throw new BadRequestException('User do not belongs to any organization');
+    return this.subscriptionsService.reduceLicenses(
+      organizationId,
+      reduceLicenses.licensesToReduce,
+    );
   }
 }

@@ -264,10 +264,6 @@ export class PatientsService {
       patientId,
     );
 
-    await this.organizationsService.decrementUsedPatientLicenses(
-      patient.organization_id,
-    );
-
     await this.auditLogsService.createLog({
       organization_id: loggedInUser.organization_id,
       actor_id: loggedInUser.id,
@@ -440,10 +436,6 @@ export class PatientsService {
 
     await this.callScriptUtilsService.assignDefaultCallScriptsToPatient(
       savedPatient,
-    );
-
-    await this.organizationsService.incrementUsedPatientLicenses(
-      organizationId,
     );
 
     await this.auditLogsService.createLog({
