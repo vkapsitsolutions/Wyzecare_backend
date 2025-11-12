@@ -738,4 +738,15 @@ export class UsersService {
       return null;
     }
   }
+
+  async findOrganizationAdmins(organizationId: string) {
+    const organizationAdmins = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoin('user.role', 'role')
+      .where('user.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('role.slug = :roleSlug', { roleSlug: RoleName.ADMINISTRATOR })
+      .getMany();
+
+    return organizationAdmins;
+  }
 }
