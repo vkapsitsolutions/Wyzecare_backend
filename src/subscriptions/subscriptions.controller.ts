@@ -84,6 +84,7 @@ export class SubscriptionsController {
     return this.subscriptionsService.addLicenses(
       organizationId,
       addLicensesDto.additionalLicenses,
+      user,
     );
   }
 
@@ -100,6 +101,7 @@ export class SubscriptionsController {
     return this.subscriptionsService.reduceLicenses(
       organizationId,
       reduceLicenses.licensesToReduce,
+      user,
     );
   }
 }

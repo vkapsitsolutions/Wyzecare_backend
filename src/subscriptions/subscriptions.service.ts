@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  forwardRef,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
 } from '@nestjs/common';
@@ -20,6 +22,9 @@ import { RolesService } from 'src/roles/roles.service';
 import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
 import Stripe from 'stripe';
 import { ConfigService } from '@nestjs/config';
+import { EmailService } from 'src/email/email.service';
+import { UsersService } from 'src/users/users.service';
+import { DYNAMIC_TEMPLATES } from 'src/email/templates/email-templates.enum';
 
 @Injectable()
 export class SubscriptionsService {
@@ -42,6 +47,9 @@ export class SubscriptionsService {
     private readonly rolesService: RolesService,
     private readonly callScriptUtilsService: CallScriptUtilsService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
   ) {
     this.stripeSecretKey =
       this.configService.getOrThrow<string>('STRIPE_SECRET_KEY');
@@ -291,6 +299,7 @@ export class SubscriptionsService {
   async addLicenses(
     organizationId: string,
     additionalLicenses: number,
+    loggedInUser: User,
   ): Promise<any> {
     if (additionalLicenses < 1) {
       throw new BadRequestException('Must add at least 1 license');
@@ -334,6 +343,29 @@ export class SubscriptionsService {
         },
       );
 
+      const orgAdmins =
+        await this.usersService.findOrganizationAdmins(organizationId);
+
+      for (const user of orgAdmins) {
+        await this.emailService.sendMail(
+          user.email,
+          {
+            recipient_name: user.fullName,
+            organization_name: subscription.organization?.name,
+            performed_by_name: loggedInUser.fullName,
+            performed_by_email: loggedInUser.email,
+            added_licenses: additionalLicenses,
+            new_total_licenses: newQuantity,
+            effective_date: new Date().toDateString(),
+            frontend_url: `${this.configService.getOrThrow<string>('FRONTEND_URL')}/settings`,
+            support_email: 'support@wyze.care',
+            app_name: 'WyzeCare',
+            current_year: new Date().getFullYear(),
+          },
+          DYNAMIC_TEMPLATES.ADD_LICENSES_TEMPLATE_KEY,
+        );
+      }
+
       return {
         success: true,
         message: `Successfully added ${additionalLicenses} license(s)`,
@@ -352,11 +384,12 @@ export class SubscriptionsService {
   }
 
   /**
-   * Reduce patient licenses (takes effect at next billing cycle)
+   * Reduce patient licenses (takes effect immediately)
    */
   async reduceLicenses(
     organizationId: string,
     licenseReduction: number,
+    loggedInUser: User,
   ): Promise<any> {
     if (licenseReduction < 1) {
       throw new BadRequestException('Must reduce at least 1 license');
@@ -387,7 +420,7 @@ export class SubscriptionsService {
     }
 
     // Check if reduction would leave insufficient licenses for current patients
-    const { used_patient_licenses: usedLicenses } =
+    const { used_patient_licenses: usedLicenses, available_patient_licenses } =
       await this.organizationsService.getOrganizationLicenseUsage(
         organizationId,
       );
@@ -402,7 +435,6 @@ export class SubscriptionsService {
         subscription.stripe_subscription_id,
       );
 
-      // Schedule the reduction for the end of the current period
       await this.stripe.subscriptions.update(
         subscription.stripe_subscription_id,
         {
@@ -415,6 +447,31 @@ export class SubscriptionsService {
           proration_behavior: 'always_invoice',
         },
       );
+
+      const orgAdmins =
+        await this.usersService.findOrganizationAdmins(organizationId);
+
+      for (const user of orgAdmins) {
+        await this.emailService.sendMail(
+          user.email,
+          {
+            recipient_name: user.fullName,
+            organization_name: subscription.organization?.name,
+            performed_by_name: loggedInUser.fullName,
+            performed_by_email: loggedInUser.email,
+            current_licenses: available_patient_licenses,
+            new_licenses: newQuantity,
+            reduction: licenseReduction,
+            used_licenses: usedLicenses,
+            effective_date: new Date().toDateString(),
+            frontend_url: `${this.configService.getOrThrow<string>('FRONTEND_URL')}/settings`,
+            support_email: 'support@wyze.care',
+            app_name: 'WyzeCare',
+            current_year: new Date().getFullYear(),
+          },
+          DYNAMIC_TEMPLATES.REDUCE_LICENSES_TEMPLATE_KEY,
+        );
+      }
 
       return {
         success: true,
