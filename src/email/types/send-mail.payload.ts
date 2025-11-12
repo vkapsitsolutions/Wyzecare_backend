@@ -40,15 +40,27 @@ export interface MailPayload {
   // Pricing / Billing fields
   // -----------------------
 
-  // IDs
-  admin_name?: string; // name/email of admin who did the change
+  // IDs / actor info
+  admin_name?: string; // legacy platform admin name (if used)
+  performed_by_name?: string; // name of the org administrator who performed the action
+  performed_by_email?: string; // email/contact of the performing admin
 
   // Prices — allow string (pre-formatted) or number
   old_monthly_price?: string | number; // prefer pre-formatted string like "49.99"
   new_monthly_price?: string | number;
 
-  // Count / metadata
+  // Count / metadata (licenses)
   licensed_patient_count?: number;
+
+  // Add-licenses specific
+  added_licenses?: number;
+  new_total_licenses?: number;
+
+  // Reduce-licenses specific
+  current_licenses?: number;
+  new_licenses?: number;
+  reduction?: number; // number of licenses reduced
+  used_licenses?: number; // currently used licenses in the org (for validation)
 
   // Effective date for UI/display (ISO date string recommended)
   effective_date?: string; // e.g. "2025-11-12" or ISO string

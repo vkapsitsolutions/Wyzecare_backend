@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -146,6 +147,10 @@ export class SuperAdminService {
     customMonthlyPrice: number,
     loggedInAdmin: User,
   ) {
+    if (customMonthlyPrice <= 0) {
+      throw new UnprocessableEntityException('Price cannot be zero or less');
+    }
+
     const { organization, activeSubscription } =
       await this.getOneOrganization(organizationId);
 

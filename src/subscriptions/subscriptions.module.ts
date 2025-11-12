@@ -10,6 +10,7 @@ import { RolesModule } from 'src/roles/roles.module';
 import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { PaymentWebhooksService } from './payment-webhooks.service';
 import { CallSchedulesModule } from 'src/call-schedules/call-schedules.module';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CallSchedulesModule } from 'src/call-schedules/call-schedules.module';
     RolesModule,
     CallScriptsModule,
     CallSchedulesModule,
+    EmailModule,
   ],
   providers: [SubscriptionsService, PaymentWebhooksService],
   controllers: [SubscriptionsController],
