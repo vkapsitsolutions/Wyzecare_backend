@@ -234,11 +234,13 @@ export class SuperAdminService {
           admin_name: loggedInAdmin.fullName,
           old_monthly_price: oldMonthlyPrice,
           new_monthly_price: customMonthlyPrice,
-          licensed_patient_count: organization.licensed_patient_count,
+          licensed_patient_count: activeSubscription
+            ? organization.licensed_patient_count
+            : 0,
           effective_date: `${new Date().toLocaleString('en-US', {
             timeZone: 'UTC',
           })} UTC`,
-          frontend_url: this.configService.getOrThrow<string>('FRONTEND_URL'),
+          frontend_url: `${this.configService.getOrThrow<string>('FRONTEND_URL')}/settings`,
           support_email: 'support@wyze.care',
           app_name: 'WyzeCare',
           current_year: new Date().getFullYear(),
