@@ -14,6 +14,8 @@ import {
 } from '../enums/organization.enum';
 import { OrganizationSubscription } from 'src/subscriptions/entities/organization-subscription.entity';
 import { USER_TYPE } from 'src/users/enums/user-type.enum';
+import { User } from 'src/users/entities/user.entity';
+import { numericToNumberTransformer } from 'src/common/helpers/numberic-to-number';
 
 @Entity({ name: 'organizations' })
 export class Organization {
@@ -96,9 +98,35 @@ export class Organization {
   })
   licensed_patient_count!: number;
 
+  @Column({ name: 'custom_price_assigned', type: 'boolean', default: false })
+  custom_price_assigned: boolean;
+
+  // Custom price per license (for negotiated rates)
+  @Column({
+    name: 'custom_monthly_price',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: numericToNumberTransformer,
+    comment: 'Custom price per license if different from plan default',
+  })
+  custom_monthly_price?: number | null;
+
+  // Custom price id (for negotiated rates)
+  @Column({
+    name: 'custom_monthly_price_id',
+    type: 'varchar',
+    nullable: true,
+  })
+  custom_monthly_price_id?: string | null;
+
   @OneToMany(
     () => OrganizationSubscription,
     (subscription) => subscription.organization,
   )
   subscriptions: OrganizationSubscription[];
+
+  @OneToMany(() => User, (user) => user.organization)
+  users?: User[];
 }

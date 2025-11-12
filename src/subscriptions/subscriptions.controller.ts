@@ -18,8 +18,10 @@ import { ActiveSubscriptionsGuard } from './guards/active-subscriptions.guard';
 import { AddLicensesDto } from './dto/add-licences.dto';
 import { PermissionsGuard } from 'src/roles/guards/permissions.guard';
 import { RequirePermissions } from 'src/roles/decorators/permissions.decorator';
-import { Permission } from 'src/roles/enums/roles-permissions.enum';
+import { Permission, RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { ReduceLicensesDto } from './dto/reduce-licenses.dto';
+import { RolesGuard } from 'src/roles/guards/roles.guard';
+import { RequiredRoles } from 'src/roles/decorators/roles.decorator';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -46,7 +48,8 @@ export class SubscriptionsController {
   }
 
   @Post('purchase/:planId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequiredRoles(RoleName.ADMINISTRATOR)
   purchaseSubscription(
     @CurrentUser() user: User,
     @Param('planId', ParseUUIDPipe) planId: string,

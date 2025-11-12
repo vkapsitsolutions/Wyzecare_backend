@@ -127,14 +127,6 @@ export class SubscriptionsService {
 
     await this.userUtilsService.assignRole(loggedInUser, adminRole);
 
-    // Create Stripe customer if not exists (assuming one per subscription for simplicity)
-    // const pendingExists = await this.orgSubscriptionsRepo.findOne({
-    //   where: {
-    //     organization_id: organization.id,
-    //     subscription_plan_id: plan.id,
-    //     status: SubscriptionStatusEnum.PENDING,
-    //   },
-    // });
     let stripeCustomerId = organization.stripe_customer_id;
     if (!stripeCustomerId) {
       const customer = await this.stripe.customers.create({
@@ -200,7 +192,9 @@ export class SubscriptionsService {
       payment_method_types: ['card'], // Add more if needed
       line_items: [
         {
-          price: plan.stripe_monthly_price_id,
+          price:
+            organization.custom_monthly_price_id ??
+            plan.stripe_monthly_price_id,
           quantity: patientLicensesCount,
         },
       ],

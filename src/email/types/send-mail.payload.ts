@@ -12,7 +12,8 @@ export interface MailPayload {
   expires_at?: string; // ISO date string: "2025-08-28T00:00:00.000Z"
   invite_link?: string; // full URL to accept invite / reset link alternate
   inviter_name?: string; // who invited (display)
-  org_name?: string; // organization name for invite
+  org_name?: string; // organization name for invite (alias)
+  organization_name?: string; // alternative name used in some templates
   role?: string; // invited role name
 
   // COMMON
@@ -34,6 +35,26 @@ export interface MailPayload {
   frontend_url?: string;
   /** ISO 8601 timestamp with offset (e.g. "2025-10-22T14:35:00+05:30") */
   timestamp?: string;
+
+  // -----------------------
+  // Pricing / Billing fields
+  // -----------------------
+
+  // IDs
+  admin_name?: string; // name/email of admin who did the change
+
+  // Prices — allow string (pre-formatted) or number
+  old_monthly_price?: string | number; // prefer pre-formatted string like "49.99"
+  new_monthly_price?: string | number;
+
+  // Count / metadata
+  licensed_patient_count?: number;
+
+  // Effective date for UI/display (ISO date string recommended)
+  effective_date?: string; // e.g. "2025-11-12" or ISO string
+
+  // Currency (optional if you want to show currency symbol dynamically)
+  currency?: string; // e.g. 'usd', 'USD', '$'
 }
 
 export const ALERT_SEVERITY_COLORS: Record<AlertSeverity, string> = {

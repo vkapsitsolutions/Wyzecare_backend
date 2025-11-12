@@ -25,6 +25,7 @@ import { CallsModule } from './calls/calls.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { SuperAdminModule } from './super-admin/super-admin.module';
 
 @Module({
   imports: [
@@ -77,7 +78,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
         GOOGLE_CLIENT_SECRET: Joi.string().required(),
         CALLBACK_URL: Joi.string().required(),
         POSTGRES_SSL: Joi.boolean().default(false),
-        // STRIPE_PRODUCT_ID: Joi.string().required(),
+        STRIPE_PRODUCT_ID: Joi.string().required(),
       }),
     }),
 
@@ -124,6 +125,8 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
     ReportsModule,
 
     AuditLogsModule,
+
+    SuperAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,8 +1,8 @@
 export enum RoleName {
-  SUPER_ADMIN = 'super_admin',
-  ADMINISTRATOR = 'administrator',
-  CARE_COORDINATOR = 'care_coordinator',
-  VIEWER = 'viewer',
+  SUPER_ADMIN = 'super_admin', // super admin of application
+  ADMINISTRATOR = 'administrator', // organization administrator
+  CARE_COORDINATOR = 'care_coordinator', // organization care coordinator
+  VIEWER = 'viewer', // organization viewer
 }
 
 export enum Permission {
