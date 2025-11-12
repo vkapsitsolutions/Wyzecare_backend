@@ -75,7 +75,7 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   invitation_accepted_at: Date;
 
-  @ManyToOne(() => Role, { nullable: true })
+  @ManyToOne(() => Role, { nullable: true, cascade: true })
   @JoinColumn({ name: 'role_id' })
   role?: Role;
 

@@ -257,7 +257,7 @@ export class SeederService implements OnModuleInit {
     const hashedPassword = await argon2.hash(superAdminPassword);
 
     const superAdmin = this.userRepo.create({
-      first_name: 'Super',
+      first_name: 'Wyzecare',
       last_name: 'Admin',
       email: superAdminMail,
       password: hashedPassword,

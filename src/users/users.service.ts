@@ -101,6 +101,11 @@ export class UsersService {
             login_provider: LOGIN_PROVIDER.LOCAL,
           });
 
+          const { data: adminRole } =
+            await this.rolesService.findAdministratorRole();
+
+          newUser.role = adminRole;
+
           const user = await userRepo.save(newUser);
 
           await verificationRepo.delete({ id: verification.id });
@@ -217,6 +222,11 @@ export class UsersService {
             photo: photoKey ?? undefined,
             last_login: new Date(),
           });
+
+          const { data: adminRole } =
+            await this.rolesService.findAdministratorRole();
+
+          newUser.role = adminRole;
 
           return await userRepo.save(newUser);
         },
