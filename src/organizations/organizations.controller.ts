@@ -4,6 +4,7 @@ import {
   Get,
   NotFoundException,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -74,6 +75,17 @@ export class OrganizationsController {
     if (!loggedInUser.organization_id)
       throw new NotFoundException('User Organization not found');
     return this.organizationsService.getOrganizationLicenseUsage(
+      loggedInUser.organization_id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('coupon-notify')
+  markCouponNotified(@CurrentUser() loggedInUser: User) {
+    if (!loggedInUser.organization_id)
+      throw new NotFoundException('User Organization not found');
+
+    return this.organizationsService.markCouponNotified(
       loggedInUser.organization_id,
     );
   }

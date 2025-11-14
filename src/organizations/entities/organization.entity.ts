@@ -121,6 +121,15 @@ export class Organization {
   })
   custom_monthly_price_id?: string | null;
 
+  @Column({ name: 'test_coupon_id', type: 'varchar', nullable: true })
+  test_coupon_id: string;
+
+  @Column({ name: 'test_promo_code_id', type: 'varchar', nullable: true })
+  test_promo_code_id: string;
+
+  @Column({ name: 'coupon_notified', default: true })
+  coupon_notified: boolean;
+
   @OneToMany(
     () => OrganizationSubscription,
     (subscription) => subscription.organization,

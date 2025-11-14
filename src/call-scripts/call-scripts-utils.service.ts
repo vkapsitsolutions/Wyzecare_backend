@@ -6,7 +6,6 @@ import { ScriptQuestion } from './entities/script-questions.entity';
 import { initialCallScripts } from './data/call-script.data';
 import slugify from 'slugify';
 import { CallScriptsService } from './call-scripts.service';
-import { PatientsService } from 'src/patients/patients.service';
 import { Patient } from 'src/patients/entities/patient.entity';
 import { CallMetricsService } from 'src/calls/call-metrics.service';
 import { ScriptStatus } from './enums/call-scripts.enum';
@@ -21,8 +20,6 @@ export class CallScriptUtilsService {
     private readonly scriptQuestionRepository: Repository<ScriptQuestion>,
 
     private readonly callScriptService: CallScriptsService,
-
-    private readonly patientsService: PatientsService,
 
     private readonly callMetricsService: CallMetricsService,
   ) {}

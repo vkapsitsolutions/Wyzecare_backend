@@ -108,6 +108,13 @@ export class UsersService {
 
           const user = await userRepo.save(newUser);
 
+          const organization =
+            await this.organizationsService.createOrganization(user);
+
+          user.organization_id = organization.id;
+
+          await userRepo.save(user);
+
           await verificationRepo.delete({ id: verification.id });
 
           return user;
@@ -227,6 +234,11 @@ export class UsersService {
             await this.rolesService.findAdministratorRole();
 
           newUser.role = adminRole;
+
+          const organization =
+            await this.organizationsService.createOrganization(newUser);
+
+          newUser.organization_id = organization.id;
 
           return await userRepo.save(newUser);
         },

@@ -7,6 +7,7 @@ import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { RolesModule } from 'src/roles/roles.module';
 import { PatientsModule } from 'src/patients/patients.module';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
     RolesModule,
     PatientsModule,
     forwardRef(() => SubscriptionsModule),
+    EmailModule,
   ],
   providers: [OrganizationsService],
   exports: [OrganizationsService],

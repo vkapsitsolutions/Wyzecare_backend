@@ -16,6 +16,11 @@ export interface MailPayload {
   organization_name?: string; // alternative name used in some templates
   role?: string; // invited role name
 
+  // Coupon / promo (added)
+  coupon_code?: string; // e.g. "ACME-TRIAL-1"
+  max_redemptions?: number; // e.g. 1
+  instructions?: string; // e.g. "Copy and paste this coupon code at checkout"
+
   // COMMON
   expiry_minutes?: number;
   app_name?: string;
