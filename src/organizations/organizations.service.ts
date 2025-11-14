@@ -232,6 +232,8 @@ export class OrganizationsService {
 
     organization.coupon_notified = true;
 
+    await this.organizationsRepo.save(organization);
+
     return {
       success: true,
       message: 'User notified about coupon',
