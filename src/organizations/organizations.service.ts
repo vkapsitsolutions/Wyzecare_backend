@@ -10,24 +10,40 @@ import {
   TimezoneEnum,
 } from './enums/organization.enum';
 import { timezoneLabelMap } from 'src/common/helpers/time-zone-mapper';
-import { CallScriptUtilsService } from 'src/call-scripts/call-scripts-utils.service';
 import { USER_TYPE } from 'src/users/enums/user-type.enum';
 import { PatientsService } from 'src/patients/patients.service';
+import Stripe from 'stripe';
+import { ConfigService } from '@nestjs/config';
+import { EmailService } from 'src/email/email.service';
+import { DYNAMIC_TEMPLATES } from 'src/email/templates/email-templates.enum';
 
 @Injectable()
 export class OrganizationsService {
+  private stripe: Stripe;
+  private stripeSecretKey: string;
   private readonly logger = new Logger(OrganizationsService.name);
   constructor(
     @InjectRepository(Organization)
     private readonly organizationsRepo: Repository<Organization>,
 
-    private readonly callScriptUtilsService: CallScriptUtilsService,
-
     private readonly patientsService: PatientsService,
-  ) {}
+
+    private readonly configService: ConfigService,
+
+    private readonly emailService: EmailService,
+  ) {
+    this.stripeSecretKey =
+      this.configService.getOrThrow<string>('STRIPE_SECRET_KEY');
+
+    this.stripe = new Stripe(this.stripeSecretKey);
+  }
 
   async createOrganization(user: User, organizationType?: USER_TYPE) {
     if (user.organization) {
+      if (organizationType) {
+        user.organization.organization_type = organizationType;
+        await this.organizationsRepo.save(user.organization);
+      }
       return user.organization;
     }
     const newOrg = this.organizationsRepo.create({
@@ -39,6 +55,22 @@ export class OrganizationsService {
     }
 
     const savedOrg = await this.organizationsRepo.save(newOrg);
+
+    // setting stripe customer
+    const customer = await this.stripe.customers.create({
+      email: user.email,
+      name: user.fullName,
+      business_name: savedOrg.name,
+      metadata: { organization_id: savedOrg.id },
+    });
+    const stripeCustomerId = customer.id;
+
+    const savedWithStripeCustomer = await this.setStripeCustomer(
+      savedOrg,
+      stripeCustomerId,
+    );
+
+    await this.createTrialPromoForOrg(savedWithStripeCustomer, user);
 
     return savedOrg;
   }
@@ -115,7 +147,7 @@ export class OrganizationsService {
   ) {
     organization.stripe_customer_id = stripeCustomerId;
 
-    await this.organizationsRepo.save(organization);
+    return await this.organizationsRepo.save(organization);
   }
 
   async getOrganizationLicenseUsage(organizationId: string) {
@@ -135,6 +167,74 @@ export class OrganizationsService {
       used_patient_licenses: patientCount,
       available_patient_licenses:
         organization.licensed_patient_count - patientCount,
+    };
+  }
+
+  async createTrialPromoForOrg(organization: Organization, orgAdmin: User) {
+    const amountOffCents = Math.max(
+      0,
+      Math.round((organization.custom_monthly_price ?? 49.99) * 100),
+    );
+
+    // 1) create coupon
+    const coupon = await this.stripe.coupons.create({
+      amount_off: amountOffCents,
+      duration: 'once',
+      currency: 'usd',
+      name: `Test coupon`,
+      metadata: { organizationId: organization.id },
+    });
+
+    // 2) create promotion code limited to one redemption (and only to this customer)
+    const promoParams: Stripe.PromotionCodeCreateParams = {
+      promotion: { type: 'coupon', coupon: coupon.id },
+      // code: `ORG-${orgId}-TRIAL`, // or leave blank for random
+      max_redemptions: 1,
+      metadata: { organizationId: organization.id },
+    };
+
+    if (organization.stripe_customer_id) {
+      promoParams.customer = organization.stripe_customer_id;
+    }
+
+    const promo = await this.stripe.promotionCodes.create(promoParams);
+
+    organization.test_coupon_id = coupon.id;
+    organization.test_promo_code_id = promo.id;
+    organization.coupon_notified = false;
+
+    await this.emailService.sendMail(
+      orgAdmin.email,
+      {
+        recipient_name: orgAdmin.fullName,
+        organization_name: organization.name,
+        coupon_code: promo.code,
+        max_redemptions: 1,
+        instructions: 'Copy and paste this coupon code at the time of checkout',
+        support_email: 'support@wyze.care',
+        app_name: 'WyzeCare',
+        current_year: new Date().getFullYear(),
+      },
+      DYNAMIC_TEMPLATES.COUPON_CODE_TEMPLATE_KEY,
+    );
+
+    await this.organizationsRepo.save(organization);
+  }
+
+  async markCouponNotified(organizationId: string) {
+    const organization = await this.organizationsRepo.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Organization not found`);
+    }
+
+    organization.coupon_notified = true;
+
+    return {
+      success: true,
+      message: 'User notified about coupon',
     };
   }
 }

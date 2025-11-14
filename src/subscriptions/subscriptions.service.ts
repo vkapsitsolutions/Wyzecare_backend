@@ -207,6 +207,7 @@ export class SubscriptionsService {
         },
       ],
       discounts: discounts,
+      allow_promotion_codes: true,
       success_url: `${this.frontendUrl}/subscription/success`, // Replace
       cancel_url: `${this.frontendUrl}/subscription/cancel`, // Replace
       metadata: { organization_id: organization.id }, // For webhook reference if needed

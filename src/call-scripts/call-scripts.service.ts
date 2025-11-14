@@ -40,6 +40,7 @@ export class CallScriptsService {
     @InjectRepository(ScriptQuestion)
     private readonly scriptQuestionRepository: Repository<ScriptQuestion>,
 
+    @Inject(forwardRef(() => PatientsService))
     private readonly patientsService: PatientsService,
 
     private readonly aiCallingService: AiCallingService,
