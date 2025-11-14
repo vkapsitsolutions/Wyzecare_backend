@@ -239,4 +239,11 @@ export class OrganizationsService {
       message: 'User notified about coupon',
     };
   }
+
+  async getMinimumLicensesToPurchase(organizationId: string) {
+    const totalPatients =
+      await this.patientsService.getPatientCount(organizationId);
+
+    return totalPatients;
+  }
 }
