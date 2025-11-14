@@ -220,7 +220,7 @@ export class SuperAdminService {
               quantity: organization.licensed_patient_count,
             },
           ],
-          proration_behavior: 'always_invoice',
+          proration_behavior: 'create_prorations',
         },
       );
     }

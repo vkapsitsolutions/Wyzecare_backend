@@ -113,6 +113,17 @@ export class SubscriptionsService {
     const organization =
       await this.organizationsService.createOrganization(loggedInUser);
 
+    const { totalPatients: minimumLicensesToPurchase } =
+      await this.organizationsService.getMinimumLicensesToPurchase(
+        organization.id,
+      );
+
+    if (patientLicensesCount < minimumLicensesToPurchase) {
+      throw new BadRequestException(
+        `You must purchase at least ${minimumLicensesToPurchase} licenses, as you already added patients earlier.`,
+      );
+    }
+
     await this.callScriptUtilsService.createDefaultScriptsForOrganization(
       organization.id,
     );
@@ -340,7 +351,7 @@ export class SubscriptionsService {
               quantity: newQuantity,
             },
           ],
-          proration_behavior: 'always_invoice',
+          proration_behavior: 'create_prorations',
         },
       );
 
@@ -445,7 +456,7 @@ export class SubscriptionsService {
               quantity: newQuantity,
             },
           ],
-          proration_behavior: 'always_invoice',
+          proration_behavior: 'create_prorations',
         },
       );
 
