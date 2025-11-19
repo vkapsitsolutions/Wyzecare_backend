@@ -11,6 +11,7 @@ import { CallScriptsModule } from 'src/call-scripts/call-scripts.module';
 import { PaymentWebhooksService } from './payment-webhooks.service';
 import { CallSchedulesModule } from 'src/call-schedules/call-schedules.module';
 import { EmailModule } from 'src/email/email.module';
+import { PatientsModule } from 'src/patients/patients.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { EmailModule } from 'src/email/email.module';
     CallScriptsModule,
     CallSchedulesModule,
     EmailModule,
+    PatientsModule,
   ],
   providers: [SubscriptionsService, PaymentWebhooksService],
   controllers: [SubscriptionsController],

@@ -389,13 +389,12 @@ export class PatientsService {
     // creation logic below
 
     // check patient licenses
-    const { available_patient_licenses } =
-      await this.organizationsService.getOrganizationLicenseUsage(
-        organizationId,
+    const usage =
+      await this.organizationsService.getExtendedLicenseUsage(organizationId);
+    if (usage.available_including_buffer < 1) {
+      throw new BadRequestException(
+        'Cannot add patient: License buffer consumed. Upgrade your subscription to add more patients.',
       );
-
-    if (available_patient_licenses <= 0) {
-      throw new ForbiddenException('No available patient licenses');
     }
 
     if (
@@ -437,6 +436,14 @@ export class PatientsService {
     await this.callScriptUtilsService.assignDefaultCallScriptsToPatient(
       savedPatient,
     );
+
+    // TODO: If entering buffer (for backend notice, e.g., email)
+    if (
+      usage.is_using_buffer ||
+      usage.used_patient_licenses + 1 > usage.licensed_patient_count
+    ) {
+      // Trigger notice (e.g., email to admins: "Added patient using buffer; will charge next cycle")
+    }
 
     await this.auditLogsService.createLog({
       organization_id: loggedInUser.organization_id,
