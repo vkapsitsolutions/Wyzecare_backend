@@ -74,7 +74,7 @@ export class OrganizationsController {
   getPatientLicenses(@CurrentUser() loggedInUser: User) {
     if (!loggedInUser.organization_id)
       throw new NotFoundException('User Organization not found');
-    return this.organizationsService.getOrganizationLicenseUsage(
+    return this.organizationsService.getExtendedLicenseUsage(
       loggedInUser.organization_id,
     );
   }

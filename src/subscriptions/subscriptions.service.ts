@@ -427,15 +427,13 @@ export class SubscriptionsService {
 
     if (newQuantity < 1) {
       throw new BadRequestException(
-        `Cannot reduce ${licenseReduction} licenses. Current licenses: ${subscription.organization.licensed_patient_count}, used licenses: ${licenseReduction}`,
+        `Cannot reduce ${licenseReduction} licenses. Current licenses: ${subscription.organization.licensed_patient_count}`,
       );
     }
 
     // Check if reduction would leave insufficient licenses for current patients
     const { used_patient_licenses: usedLicenses, available_patient_licenses } =
-      await this.organizationsService.getOrganizationLicenseUsage(
-        organizationId,
-      );
+      await this.organizationsService.getExtendedLicenseUsage(organizationId);
     if (newQuantity < usedLicenses) {
       throw new BadRequestException(
         `Cannot reduce to ${newQuantity} licenses. Currently using ${usedLicenses} licenses.`,

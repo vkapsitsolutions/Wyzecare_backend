@@ -150,26 +150,6 @@ export class OrganizationsService {
     return await this.organizationsRepo.save(organization);
   }
 
-  async getOrganizationLicenseUsage(organizationId: string) {
-    const organization = await this.organizationsRepo.findOne({
-      where: { id: organizationId },
-    });
-
-    if (!organization) {
-      throw new NotFoundException('Organization not found');
-    }
-
-    const { totalPatients: patientCount } =
-      await this.patientsService.getPatientCount(organizationId);
-
-    return {
-      licensed_patient_count: organization.licensed_patient_count,
-      used_patient_licenses: patientCount,
-      available_patient_licenses:
-        organization.licensed_patient_count - patientCount,
-    };
-  }
-
   async createTrialPromoForOrg(organization: Organization, orgAdmin: User) {
     const amountOffCents = Math.max(
       0,
@@ -245,5 +225,64 @@ export class OrganizationsService {
       await this.patientsService.getPatientCount(organizationId);
 
     return totalPatients;
+  }
+
+  /**
+   * Buffer-aware license usage for adding patients and UI display.
+   * Use this in PatientsService.addPatient and Patient Overview.
+   */
+  async getExtendedLicenseUsage(organizationId: string) {
+    const organization = await this.organizationsRepo.findOne({
+      where: { id: organizationId },
+    });
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+    const { totalPatients: patientCount } =
+      await this.patientsService.getPatientCount(organizationId);
+
+    // Strict usage (existing)
+    const strictAvailable = organization.licensed_patient_count - patientCount;
+
+    // Buffer calculation
+    const eligibleForBuffer = organization.licensed_patient_count >= 5;
+    const bufferSize = this.calculateBufferSize(
+      organization.licensed_patient_count,
+    );
+    const totalAllowed = organization.licensed_patient_count + bufferSize;
+    const availableIncludingBuffer = Math.max(0, totalAllowed - patientCount);
+    const graceUsed = Math.max(
+      0,
+      patientCount - organization.licensed_patient_count,
+    );
+    const remainingBuffer = Math.max(0, bufferSize - graceUsed);
+    const isUsingBuffer = graceUsed > 0;
+
+    return {
+      // Strict (for reduces, existing checks)
+      licensed_patient_count: organization.licensed_patient_count,
+      used_patient_licenses: patientCount,
+      available_patient_licenses: strictAvailable, // licensed - used (can be negative if over)
+
+      // Buffer-aware (for adds, UI)
+      buffer_size: bufferSize,
+      eligible_for_buffer: eligibleForBuffer,
+      total_allowed: totalAllowed,
+      available_including_buffer: availableIncludingBuffer,
+      grace_used: graceUsed,
+      remaining_buffer: remainingBuffer,
+      is_using_buffer: isUsingBuffer,
+    };
+  }
+
+  /**
+   * Calculate buffer size: max(5, 5% of licensed_patient_count) if eligible (>=5 licenses).
+   */
+  calculateBufferSize(licensedPatientCount: number): number {
+    if (licensedPatientCount < 5) {
+      return 0;
+    }
+    const percentageBuffer = Math.floor(licensedPatientCount * 0.05);
+    return Math.max(5, percentageBuffer);
   }
 }

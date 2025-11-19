@@ -8,6 +8,7 @@ import {
 } from '../subscriptions/entities/organization-subscription.entity';
 import { ConfigService } from '@nestjs/config';
 import { CallSchedulesService } from 'src/call-schedules/call-schedules.service';
+import { PatientsService } from 'src/patients/patients.service';
 
 @Injectable()
 export class PaymentWebhooksService {
@@ -19,6 +20,7 @@ export class PaymentWebhooksService {
     @InjectRepository(OrganizationSubscription)
     private orgSubscriptionsRepo: Repository<OrganizationSubscription>,
     private readonly callScheduleService: CallSchedulesService,
+    private readonly patientsService: PatientsService,
   ) {
     this.stripe = new Stripe(
       this.configService.getOrThrow<string>('STRIPE_SECRET_KEY'),
@@ -69,6 +71,110 @@ export class PaymentWebhooksService {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         await this.updateSubscriptionInDb(subscription, true);
+        break;
+      }
+
+      case 'invoice.payment_succeeded': {
+        // Handle renewal payment
+        const invoice = event.data.object;
+        if (invoice.billing_reason !== 'subscription_cycle') {
+          break; // Only for cycle renewals
+        }
+
+        let subId: string;
+        try {
+          if (
+            typeof invoice.parent?.subscription_details?.subscription ===
+            'string'
+          ) {
+            subId = invoice.parent?.subscription_details?.subscription;
+            if (!subId) {
+              this.logger.warn(
+                `No subscription ID found for invoice ${invoice.id}`,
+              );
+              break;
+            }
+          } else if (
+            typeof invoice.parent?.subscription_details?.subscription ===
+            'object'
+          ) {
+            subId = invoice.parent.subscription_details.subscription.id;
+          } else {
+            this.logger.error(`Error extracting subscription ID`);
+            break;
+          }
+        } catch (error) {
+          this.logger.error(`Error extracting subscription ID: ${error}`);
+          break;
+        }
+
+        let stripeSub: Stripe.Subscription;
+        try {
+          stripeSub = await this.stripe.subscriptions.retrieve(subId);
+        } catch (error) {
+          this.logger.error(
+            `Failed to retrieve subscription ${subId}: ${error}`,
+          );
+          break;
+        }
+
+        // Find matching DB subscription
+        const sub = await this.orgSubscriptionsRepo.findOne({
+          where: {
+            stripe_subscription_id: subId,
+            status: SubscriptionStatusEnum.ACTIVE,
+          },
+          relations: ['organization', 'subscription_plan'],
+          order: { created_at: 'DESC' },
+        });
+
+        if (!sub) {
+          this.logger.warn(`No active subscription for invoice ${invoice.id}`);
+          break;
+        }
+
+        const orgId = sub.organization_id;
+        let patientCount: number;
+        try {
+          const { totalPatients: total } =
+            await this.patientsService.getPatientCount(orgId);
+          patientCount = total;
+        } catch (error) {
+          this.logger.error(
+            `Failed to fetch patient count for org ${orgId}: ${error}`,
+          );
+          break;
+        }
+
+        const currentLicensed = sub.organization.licensed_patient_count;
+
+        // Auto-increase if buffer consumed (charge full next cycle)
+        if (patientCount > currentLicensed) {
+          const newQuantity = patientCount;
+          const itemId = stripeSub.items.data[0]?.id;
+          if (itemId) {
+            try {
+              await this.stripe.subscriptions.update(subId, {
+                items: [
+                  {
+                    id: itemId,
+                    quantity: newQuantity,
+                  },
+                ],
+                proration_behavior: 'always_invoice',
+              });
+              // Sync DB immediately
+              await this.updateSubscriptionInDb(stripeSub);
+              this.logger.log(
+                `Auto-increased licenses for org ${orgId} from ${currentLicensed} to ${newQuantity} (buffer consumed)`,
+              );
+            } catch (error) {
+              this.logger.error(
+                `Failed to update subscription ${subId}: ${error}`,
+              );
+            }
+          }
+        }
         break;
       }
 
