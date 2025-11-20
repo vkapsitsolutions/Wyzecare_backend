@@ -30,6 +30,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'https://wyze-care.vercel.app',
       'https://wyze-care-superadmin.vercel.app', // super admin
+      'https://node.wyze.care',
       process.env.FRONTEND_URL,
     ],
     credentials: true,
