@@ -33,6 +33,7 @@ export class Alert {
   id: string;
 
   @Column('uuid', { name: 'organization_id', nullable: false })
+  @Index()
   organization_id!: string;
 
   @ManyToOne(() => Organization, {

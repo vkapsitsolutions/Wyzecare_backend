@@ -206,4 +206,27 @@ export class UserUtilsService {
 
     return userCount;
   }
+
+  async checkPhoneExists(phone: string) {
+    const existingPhone = await this.userRepository.exists({
+      where: { phone: phone, phone_verified: true },
+      withDeleted: true,
+    });
+
+    return existingPhone;
+  }
+
+  async addPhone(phone: string, user: User) {
+    if (!user.phone) {
+      user.phone = phone;
+      user.phone_verified = false;
+
+      await this.userRepository.save(user);
+    }
+  }
+
+  async markPhoneAsVerified(user: User) {
+    user.phone_verified = true;
+    await this.userRepository.save(user);
+  }
 }

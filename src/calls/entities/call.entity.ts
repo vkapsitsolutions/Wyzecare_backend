@@ -33,6 +33,7 @@ export class Call {
   @JoinColumn({ name: 'call_run_id' })
   call_run: CallRun;
 
+  @Index()
   @Column('uuid', { name: 'organization_id', nullable: false })
   organization_id!: string;
 

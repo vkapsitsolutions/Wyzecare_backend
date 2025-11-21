@@ -79,6 +79,10 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
         CALLBACK_URL: Joi.string().required(),
         POSTGRES_SSL: Joi.boolean().default(false),
         STRIPE_PRODUCT_ID: Joi.string().required(),
+        TWILIO_ACCOUNT_SID: Joi.string().required(),
+        TWILIO_AUTH_TOKEN: Joi.string().required(),
+        TWILIO_VERIFICATION_SERVICE_SID: Joi.string().required(),
+        TWILIO_SENDER_PHONE_NUMBER: Joi.string().required(),
       }),
     }),
 

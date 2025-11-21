@@ -24,6 +24,7 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ name: 'organization_id', nullable: true })
   organization_id?: string;
 
@@ -49,6 +50,15 @@ export class User {
 
   @Column({ nullable: true, select: false })
   password: string;
+
+  @Column({ default: true })
+  phone_consent_provided: boolean;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column({ default: false })
+  phone_verified: boolean;
 
   @Column({ nullable: true, select: false })
   refresh_token_hash: string;
