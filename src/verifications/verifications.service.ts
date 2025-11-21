@@ -22,12 +22,20 @@ import { UserUtilsService } from 'src/users/users-utils.service';
 import { InitiatePasswordResetDto } from 'src/auth/dto/initiate-password-reset.dto';
 import { ConfigService } from '@nestjs/config';
 import { USER_STATUS } from 'src/users/enums/user-status.enum';
+import { Twilio } from 'twilio';
+import { InitiatePhoneVerificationDto } from './dto/initiate-phone-verification.dto';
+import { VerificationListInstanceCreateOptions } from 'twilio/lib/rest/verify/v2/service/verification';
+import { ConfirmPhoneOtpDto } from './dto/confirm-phone-otp.dto';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class VerificationsService {
   private logger = new Logger(VerificationsService.name);
   private readonly MAX_OTP_ATTEMPTS = 5;
   private readonly frontendUrl: string;
+  private twilioClient: Twilio;
+  private accountSid: string;
+  private authToken: string;
 
   constructor(
     private readonly userUtilsService: UserUtilsService,
@@ -37,6 +45,10 @@ export class VerificationsService {
     private readonly configService: ConfigService,
   ) {
     this.frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
+    this.accountSid =
+      this.configService.getOrThrow<string>('TWILIO_ACCOUNT_SID');
+    this.authToken = this.configService.getOrThrow<string>('TWILIO_AUTH_TOKEN');
+    this.twilioClient = new Twilio(this.accountSid, this.authToken);
   }
 
   private readonly RESET_TOKEN_EXPIRY_MINUTES = 60; // 1 hour expiry
@@ -333,5 +345,91 @@ export class VerificationsService {
     }
 
     return verification;
+  }
+
+  async initiatePhoneNumberVerification(
+    initiatePhoneVerificationDto: InitiatePhoneVerificationDto,
+    user: User,
+  ) {
+    if (user.phone && user.phone_verified) {
+      throw new ConflictException('Phone number already verified');
+    }
+
+    const { phone } = initiatePhoneVerificationDto;
+
+    const existingPhone = await this.userUtilsService.checkPhoneExists(phone);
+    if (existingPhone) {
+      throw new ConflictException('Phone number already taken');
+    }
+
+    const serviceSid = this.configService.getOrThrow<string>(
+      'TWILIO_VERIFICATION_SERVICE_SID',
+    );
+
+    const verificationParams: VerificationListInstanceCreateOptions = {
+      to: `${phone}`,
+      channel: 'sms',
+    };
+
+    try {
+      await this.twilioClient.verify.v2
+        .services(serviceSid)
+        .verifications.create(verificationParams);
+
+      await this.userUtilsService.addPhone(phone, user);
+
+      return { success: true, message: 'Code sent successfully' };
+    } catch (err) {
+      this.logger.error(err);
+      throw new BadRequestException(
+        `Could not send OTP to ${phone}, please enter a valid phone number.`,
+      );
+    }
+  }
+
+  async confirmPhoneNumber(
+    confirmPhoneNumberOtp: ConfirmPhoneOtpDto,
+    user: User,
+  ) {
+    if (!user.phone) {
+      throw new BadRequestException(
+        'User does not have a phone number to verify',
+      );
+    }
+
+    if (user.phone_verified) {
+      throw new ConflictException('Phone number already verified');
+    }
+    const phone = user.phone;
+
+    const { otp } = confirmPhoneNumberOtp;
+
+    const phoneNumber = phone;
+    const serviceSid = this.configService.getOrThrow<string>(
+      'TWILIO_VERIFICATION_SERVICE_SID',
+    );
+
+    try {
+      const result = await this.twilioClient.verify.v2
+        .services(serviceSid)
+        .verificationChecks.create({ to: phoneNumber, code: otp });
+
+      if (!result.valid || result.status !== 'approved') {
+        throw new BadRequestException('Wrong code provided');
+      }
+
+      await this.userUtilsService.markPhoneAsVerified(user);
+
+      return {
+        success: true,
+        message: 'Mobile number verified successfully',
+        result: result.toJSON(),
+      };
+    } catch (err) {
+      this.logger.error(err);
+      throw new BadRequestException(
+        'Could not verify your phone number, please try again',
+      );
+    }
   }
 }

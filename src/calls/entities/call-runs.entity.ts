@@ -22,6 +22,7 @@ export class CallRun {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Index()
   @Column('uuid', { name: 'organization_id', nullable: false })
   organization_id!: string;
 
