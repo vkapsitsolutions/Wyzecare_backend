@@ -10,6 +10,7 @@ import {
   Index,
   ManyToMany,
   JoinTable,
+  OneToOne,
 } from 'typeorm';
 import { USER_STATUS } from '../enums/user-status.enum';
 import { LOGIN_PROVIDER } from '../enums/login.provider.enum';
@@ -18,6 +19,7 @@ import { Organization } from 'src/organizations/entities/organization.entity';
 import { GENDER } from 'src/common/types/gender.enum';
 import { Patient } from 'src/patients/entities/patient.entity'; // Adjust path as needed
 import { USER_TYPE } from '../enums/user-type.enum';
+import { NotificationPreference } from 'src/notifications/entities/notification-preferences.entity';
 
 @Entity()
 export class User {
@@ -118,6 +120,12 @@ export class User {
 
   @DeleteDateColumn({ type: 'timestamptz' })
   deleted_at: Date | null;
+
+  @OneToOne(
+    () => NotificationPreference,
+    (notificationPreference) => notificationPreference.user,
+  )
+  notificationPreference: NotificationPreference;
 
   //  Many-to-many relation for accessible patients
   @ManyToMany(() => Patient, (patient) => patient.usersWithAccess)

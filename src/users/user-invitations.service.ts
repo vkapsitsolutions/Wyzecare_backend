@@ -30,6 +30,8 @@ import { Role } from 'src/roles/entities/role.entity';
 import { AuditLogsService } from 'src/audit-logs/audit-logs.service';
 import { AuditAction } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
+import { NotificationPreferenceService } from 'src/notifications/notification-preferences.service';
+import { USER_TYPE } from './enums/user-type.enum';
 
 @Injectable()
 export class UserInvitationsService {
@@ -53,6 +55,8 @@ export class UserInvitationsService {
     private readonly subscriptionService: SubscriptionsService,
 
     private readonly auditLogService: AuditLogsService,
+
+    private readonly notificationPreferencesService: NotificationPreferenceService,
   ) {}
 
   async inviteUsers(dto: InviteUsersDto, currentUser: User) {
@@ -401,6 +405,13 @@ export class UserInvitationsService {
     // --- Tokens & refresh token ---
     const { accessToken, refreshToken } =
       this.jwtTokenService.generateTokens(savedUser);
+
+    await this.notificationPreferencesService.getOrCreatePreference(
+      savedUser.id,
+      invitation.organization.organization_type === USER_TYPE.NORMAL
+        ? true
+        : false,
+    );
 
     await this.userUtilsService.setCurrentRefreshToken(
       savedUser.id,

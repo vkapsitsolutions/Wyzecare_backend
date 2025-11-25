@@ -40,6 +40,7 @@ import { AuditAction } from 'src/audit-logs/entities/audit-logs.entity';
 import { Request } from 'express';
 import { OrganizationsService } from 'src/organizations/organizations.service';
 import { USER_TYPE } from './enums/user-type.enum';
+import { NotificationPreferenceService } from 'src/notifications/notification-preferences.service';
 
 @Injectable()
 export class UsersService {
@@ -63,6 +64,8 @@ export class UsersService {
     private readonly auditLogsService: AuditLogsService,
 
     private readonly organizationsService: OrganizationsService,
+
+    private readonly notificationPreferencesService: NotificationPreferenceService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -161,6 +164,11 @@ export class UsersService {
       userType,
     );
 
+    await this.notificationPreferencesService.getOrCreatePreference(
+      user.id,
+      userType === USER_TYPE.NORMAL ? true : false,
+    );
+
     user.organization_id = organization.id;
 
     if (user.role?.slug === RoleName.ADMINISTRATOR) {
@@ -174,6 +182,10 @@ export class UsersService {
       for (const otherUser of otherUsers) {
         otherUser.user_type = userType;
         await this.userRepository.save(otherUser);
+        await this.notificationPreferencesService.getOrCreatePreference(
+          otherUser.id,
+          userType === USER_TYPE.NORMAL ? true : false,
+        );
       }
     }
 
@@ -770,5 +782,21 @@ export class UsersService {
       .getMany();
 
     return organizationAdmins;
+  }
+
+  async rejectPhoneConsent(user: User) {
+    if (user.phone && user.phone_verified) {
+      return {
+        success: true,
+        message: 'Phone number already verified, cannot reject consent',
+      };
+    }
+    user.phone_consent_provided = false;
+    await this.userRepository.save(user);
+
+    return {
+      success: true,
+      message: 'Phone consent rejected successfully',
+    };
   }
 }
