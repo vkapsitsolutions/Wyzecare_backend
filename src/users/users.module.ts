@@ -15,6 +15,7 @@ import { RolesModule } from 'src/roles/roles.module';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { AuditLogsModule } from 'src/audit-logs/audit-logs.module';
 import { OrganizationsModule } from 'src/organizations/organizations.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { OrganizationsModule } from 'src/organizations/organizations.module';
     SubscriptionsModule,
     AuditLogsModule,
     OrganizationsModule,
+    NotificationsModule,
   ],
   controllers: [UsersController, UserInvitationsController],
   providers: [UsersService, UserUtilsService, UserInvitationsService],

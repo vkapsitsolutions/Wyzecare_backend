@@ -24,6 +24,8 @@ import { ALERT_SEVERITY_COLORS } from 'src/email/types/send-mail.payload';
 import { PatientsService } from 'src/patients/patients.service';
 import { ConfigService } from '@nestjs/config';
 import { capitalize } from 'src/common/helpers/capitalize';
+import { NotificationPreferenceService } from 'src/notifications/notification-preferences.service';
+import { SmsService } from 'src/notifications/sms.service';
 
 export interface CreateAlertPayload {
   organizationId: string;
@@ -67,6 +69,10 @@ export class AlertsService {
     private readonly patientsService: PatientsService,
 
     private readonly configService: ConfigService,
+
+    private readonly notificationsPreferencesService: NotificationPreferenceService,
+
+    private readonly smsService: SmsService,
   ) {}
 
   /**
@@ -133,7 +139,7 @@ export class AlertsService {
             severity_color: ALERT_SEVERITY_COLORS[payload.severity],
             message: payload.message ?? 'No message provided',
             trigger: payload.trigger ?? 'System Generated',
-            frontend_url: this.configService.getOrThrow<string>('FRONTEND_URL'),
+            frontend_url: `${this.configService.getOrThrow<string>('FRONTEND_URL')}/alerts`,
             timestamp: `${savedAlert.createdAt.toLocaleString('en-US', {
               timeZone: 'UTC',
             })} UTC`,
@@ -142,6 +148,36 @@ export class AlertsService {
           },
           DYNAMIC_TEMPLATES.ALERT_TEMPLATE_KEY,
         );
+
+        // sms logic
+        const shouldSendSmsAlert =
+          await this.notificationsPreferencesService.shouldSendSmsAlert(
+            user,
+            alert.severity,
+          );
+
+        if (shouldSendSmsAlert) {
+          const portalLink = `${this.configService.getOrThrow<string>('FRONTEND_URL')}/alerts`;
+
+          const smsResult = await this.smsService.sendAlertSms(
+            user.phone,
+            patient?.fullName || 'Patient',
+            alert.severity,
+            payload.alertType,
+            payload.message || 'No message provided',
+            portalLink,
+          );
+
+          if (smsResult.sid) {
+            this.logger.log(
+              `Alert SMS sent to ${user.phone} for alert ${savedAlert.id}`,
+            );
+          } else {
+            this.logger.error(
+              `Failed to send Alert SMS to ${user.phone} for alert ${savedAlert.id}: ${smsResult.error}`,
+            );
+          }
+        }
       }
 
       return savedAlert;

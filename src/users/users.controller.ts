@@ -187,12 +187,18 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @Get('temp/deleted-users')
   getDeletedUsers() {
-    return this.userUtilsService.getDeletedUsers();
+    // return this.userUtilsService.getDeletedUsers();
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('temp/restore/:id')
   restoreDeletedUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.userUtilsService.restoreDeletedUser(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('reject-phone-consent')
+  rejectPhoneConsent(@CurrentUser() user: User) {
+    return this.usersService.rejectPhoneConsent(user);
   }
 }

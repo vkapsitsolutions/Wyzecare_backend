@@ -26,6 +26,7 @@ import { AlertsModule } from './alerts/alerts.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
         TWILIO_AUTH_TOKEN: Joi.string().required(),
         TWILIO_VERIFICATION_SERVICE_SID: Joi.string().required(),
         TWILIO_SENDER_PHONE_NUMBER: Joi.string().required(),
+        TWILIO_MESSAGING_SERVICE_SID: Joi.string().required(),
       }),
     }),
 
@@ -131,6 +133,8 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
     AuditLogsModule,
 
     SuperAdminModule,
+
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,6 +9,7 @@ import { CallsModule } from 'src/calls/calls.module';
 import { AlertMetricsService } from './alert-metrics.service';
 import { EmailModule } from 'src/email/email.module';
 import { PatientsModule } from 'src/patients/patients.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { PatientsModule } from 'src/patients/patients.module';
     forwardRef(() => CallsModule),
     EmailModule,
     forwardRef(() => PatientsModule),
+    NotificationsModule,
   ],
   providers: [AlertsService, AlertMetricsService],
   controllers: [AlertsController],
