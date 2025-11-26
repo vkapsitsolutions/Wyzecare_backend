@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   Body,
   Controller,
   Get,
@@ -6,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { NotificationPreferenceService } from './notification-preferences.service';
@@ -17,13 +19,14 @@ import { RolesGuard } from 'src/roles/guards/roles.guard';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { RequiredRoles } from 'src/roles/decorators/roles.decorator';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
-import { SmsService } from './sms.service';
+import { DeliveryStatusLogsService } from './delivery-logs.service';
+import { GetDeliveryStatusLogsDto } from './dto/get-delivery-status-logs.dto';
 
 @Controller('notifications')
 export class NotificationController {
   constructor(
     private readonly notificationPreferencesService: NotificationPreferenceService,
-    private readonly smsService: SmsService,
+    private readonly deliveryLogsService: DeliveryStatusLogsService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -52,5 +55,19 @@ export class NotificationController {
     @Body() updateData: UpdatePreferencesDto,
   ) {
     return this.notificationPreferencesService.updatePreference(id, updateData);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @RequiredRoles(RoleName.ADMINISTRATOR)
+  @Get('delivery-logs')
+  async getDeliveryLogs(
+    @CurrentUser() user: User,
+    @Query() query: GetDeliveryStatusLogsDto,
+  ) {
+    const organization_id = user.organization_id;
+    if (!organization_id) {
+      throw new BadGatewayException('User does not belong to any organization');
+    }
+    return this.deliveryLogsService.getByOrganization(organization_id, query);
   }
 }

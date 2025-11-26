@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AlertSeverity } from 'src/alerts/entities/alert.entity';
+import { capitalize } from 'src/common/helpers/capitalize';
 import { Twilio } from 'twilio';
 
 @Injectable()
@@ -18,12 +19,15 @@ export class SmsService {
     phoneNumber: string,
     patientName: string,
     severity: AlertSeverity,
-    alertType: string, // <-- added
+    alertType: string,
     message: string,
     portalLink: string,
-  ): Promise<{ sid: string | null; error?: string }> {
+  ): Promise<{
+    sid: string | null;
+    formattedMessage?: string;
+    error?: string;
+  }> {
     try {
-      // Format message to stay under 160 characters
       const formattedMessage = this.formatAlertMessage(
         severity,
         alertType,
@@ -32,18 +36,25 @@ export class SmsService {
         portalLink,
       );
 
+      const baseUrl =
+        this.configService.getOrThrow('NODE_ENV') === 'production'
+          ? 'https://app.wyze.care'
+          : 'https://staging.wyze.care';
+      const statusCallbackUrl = `${baseUrl}/api/webhooks/twilio/sms-status`;
+
       const response = await this.client.messages.create({
         body: formattedMessage,
         from: this.configService.getOrThrow<string>(
           'TWILIO_MESSAGING_SERVICE_SID',
         ),
         to: phoneNumber,
+        statusCallback: statusCallbackUrl,
       });
 
       this.logger.log(
-        `SMS sent successfully. SID: ${response.sid}, To: ${phoneNumber}`,
+        `SMS sent successfully. SID: ${response.sid}, To: ${phoneNumber}, Callback: ${statusCallbackUrl}`,
       );
-      return { sid: response.sid };
+      return { sid: response.sid, formattedMessage };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
@@ -66,7 +77,9 @@ export class SmsService {
     portalLink: string,
   ): string {
     // Include alertType in prefix, keep it short
-    const severityPrefix = `WyzeCare ${severity}${alertType ? ` - ${alertType}` : ''}:`;
+    const severityPrefix = capitalize(
+      `WyzeCare ${severity}${alertType ? ` - ${alertType}` : ''}:`,
+    );
     const content = `${patientFirstName} ${message}`;
     const link = `Details: ${portalLink}`;
 
@@ -103,13 +116,4 @@ export class SmsService {
 
     return fullMessage;
   }
-
-  //   async handleIncomingWebhook(body: any): Promise<void> {
-  //     const { From, Body } = body;
-
-  //     if (Body.toUpperCase() === 'STOP') {
-  //       this.logger.log(`Opt-out request received from ${From}`);
-  //       // Will be handled in NotificationPreference service
-  //     }
-  //   }
 }
