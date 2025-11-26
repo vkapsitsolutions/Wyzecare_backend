@@ -26,6 +26,10 @@ import { ConfigService } from '@nestjs/config';
 import { capitalize } from 'src/common/helpers/capitalize';
 import { NotificationPreferenceService } from 'src/notifications/notification-preferences.service';
 import { SmsService } from 'src/notifications/sms.service';
+import {
+  DeliveryStatusLog,
+  SmsStatus,
+} from 'src/notifications/entities/delivery-status-logs.entity';
 
 export interface CreateAlertPayload {
   organizationId: string;
@@ -169,12 +173,39 @@ export class AlertsService {
           );
 
           if (smsResult.sid) {
+            // Create SmsLog inside transaction
+            await manager.getRepository(DeliveryStatusLog).save(
+              manager.getRepository(DeliveryStatusLog).create({
+                organization_id: patient?.organization_id,
+                alertId: savedAlert.id,
+                user_id: user.id,
+                phoneNumber: user.phone,
+                twilioSid: smsResult.sid,
+                message: smsResult.formattedMessage,
+                sentAt: new Date(),
+              }),
+            );
+
             this.logger.log(
-              `Alert SMS sent to ${user.phone} for alert ${savedAlert.id}`,
+              `Alert SMS sent to ${user.phone} for alert ${savedAlert.id}, SID: ${smsResult.sid}`,
             );
           } else {
             this.logger.error(
               `Failed to send Alert SMS to ${user.phone} for alert ${savedAlert.id}: ${smsResult.error}`,
+            );
+            // Log failure as DeliveryStatusLog with status 'failed'
+            await manager.getRepository(DeliveryStatusLog).save(
+              manager.getRepository(DeliveryStatusLog).create({
+                alertId: savedAlert.id,
+                user_id: user.id,
+                phoneNumber: user.phone,
+                twilioSid: 'N/A',
+                status: SmsStatus.FAILED,
+                message: smsResult.formattedMessage || null,
+                error: smsResult.error || 'Unknown error',
+                sentAt: new Date(),
+                statusUpdatedAt: new Date(),
+              }),
             );
           }
         }

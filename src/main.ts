@@ -31,6 +31,7 @@ async function bootstrap() {
       'https://wyze-care.vercel.app',
       'https://wyze-care-superadmin.vercel.app', // super admin
       'https://node.wyze.care',
+      'https://nest.wyze.care',
       process.env.FRONTEND_URL,
     ],
     credentials: true,
