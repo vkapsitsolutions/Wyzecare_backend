@@ -84,10 +84,7 @@ export class WebhooksController {
       const twilioSignature = req.header('X-Twilio-Signature') ?? '';
       const authToken =
         this.configService.getOrThrow<string>('TWILIO_AUTH_TOKEN');
-      const baseUrl =
-        this.configService.getOrThrow('NODE_ENV') === 'production'
-          ? 'https://app.wyze.care'
-          : 'https://staging.wyze.care';
+      const baseUrl = this.configService.get<string>('FRONTEND_URL');
       const statusCallbackUrl = `${baseUrl}/api/webhooks/twilio/sms-status`;
 
       // req.body is parsed by bodyParser.urlencoded

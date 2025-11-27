@@ -36,10 +36,7 @@ export class SmsService {
         portalLink,
       );
 
-      const baseUrl =
-        this.configService.getOrThrow('NODE_ENV') === 'production'
-          ? 'https://app.wyze.care'
-          : 'https://staging.wyze.care';
+      const baseUrl = this.configService.get<string>('FRONTEND_URL');
       const statusCallbackUrl = `${baseUrl}/api/webhooks/twilio/sms-status`;
 
       const response = await this.client.messages.create({
