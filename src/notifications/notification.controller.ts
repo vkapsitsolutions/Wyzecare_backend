@@ -27,6 +27,7 @@ export class NotificationController {
   constructor(
     private readonly notificationPreferencesService: NotificationPreferenceService,
     private readonly deliveryLogsService: DeliveryStatusLogsService,
+    // private readonly smsService: SmsService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -69,5 +70,17 @@ export class NotificationController {
       throw new BadGatewayException('User does not belong to any organization');
     }
     return this.deliveryLogsService.getByOrganization(organization_id, query);
+  }
+
+  @Post('temp-test-sms')
+  temp() {
+    // return this.smsService.sendAlertSms(
+    //   '+918982975277',
+    //   'Jimmy Snow',
+    //   AlertSeverity.IMPORTANT,
+    //   'High Blood Pressure',
+    //   'Patient blood pressure is critically high.',
+    //   'https://staging.wyze.care/alerts',
+    // );
   }
 }
