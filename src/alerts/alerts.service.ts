@@ -337,6 +337,7 @@ export class AlertsService {
 
     const qb = this.alertsRepository
       .createQueryBuilder('alert')
+      .withDeleted()
       .where('alert.organization_id = :organizationId', {
         organizationId: loggedInUser.organization_id,
       })
