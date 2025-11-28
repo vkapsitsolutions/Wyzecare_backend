@@ -413,10 +413,12 @@ export class AlertsService {
     const createCountQb = (status: AlertStatus) => {
       const countQb = this.alertsRepository
         .createQueryBuilder('alert')
+        .withDeleted()
         .leftJoin('alert.patient', 'patient')
         .where('alert.organization_id = :organizationId', {
           organizationId: loggedInUser.organization_id,
         })
+        .andWhere('(patient.deleted_at IS NULL)') // <-- ADDED
         .andWhere('(patient.id IS NULL OR patient.deleted_at IS NULL)')
         .andWhere('alert.status = :status', { status });
 

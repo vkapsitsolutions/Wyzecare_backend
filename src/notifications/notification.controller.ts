@@ -21,13 +21,15 @@ import { RequiredRoles } from 'src/roles/decorators/roles.decorator';
 import { RoleName } from 'src/roles/enums/roles-permissions.enum';
 import { DeliveryStatusLogsService } from './delivery-logs.service';
 import { GetDeliveryStatusLogsDto } from './dto/get-delivery-status-logs.dto';
+import { SmsService } from './sms.service';
+import { AlertSeverity } from 'src/alerts/entities/alert.entity';
 
 @Controller('notifications')
 export class NotificationController {
   constructor(
     private readonly notificationPreferencesService: NotificationPreferenceService,
     private readonly deliveryLogsService: DeliveryStatusLogsService,
-    // private readonly smsService: SmsService,
+    private readonly smsService: SmsService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -74,13 +76,13 @@ export class NotificationController {
 
   @Post('temp-test-sms')
   temp() {
-    // return this.smsService.sendAlertSms(
-    //   '+918982975277',
-    //   'Jimmy Snow',
-    //   AlertSeverity.IMPORTANT,
-    //   'High Blood Pressure',
-    //   'Patient blood pressure is critically high.',
-    //   'https://staging.wyze.care/alerts',
-    // );
+    return this.smsService.sendAlertSms(
+      '+12076900393',
+      'Jimmy Snow',
+      AlertSeverity.IMPORTANT,
+      'High Blood Pressure',
+      'Patient blood pressure is critically high.',
+      'https://staging.wyze.care/alerts',
+    );
   }
 }

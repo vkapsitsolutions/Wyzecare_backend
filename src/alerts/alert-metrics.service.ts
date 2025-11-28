@@ -4,7 +4,6 @@ import {
   FindOptionsWhere,
   LessThanOrEqual,
   MoreThanOrEqual,
-  Not,
   Repository,
 } from 'typeorm';
 import { Alert, AlertSeverity, AlertStatus } from './entities/alert.entity';
@@ -54,12 +53,13 @@ export class AlertMetricsService {
     const avgResponseTime = parseFloat(row.avg_response_time ?? '') || 0;
     const avgResolveTime = parseFloat(row.avg_resolve_time ?? '') || 0;
 
-    const activeAlertsCount = await this.alertRepository.count({
-      where: {
-        organization_id: organizationId,
-        status: Not(AlertStatus.RESOLVED),
-      },
-    });
+    const activeAlertsCount = await this.alertRepository
+      .createQueryBuilder('alert')
+      .innerJoin('alert.patient', 'patient')
+      .where('alert.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('alert.status != :status', { status: AlertStatus.RESOLVED })
+      .andWhere('patient.deleted_at IS NULL')
+      .getCount();
 
     return {
       activeAlertsCount,
@@ -98,46 +98,62 @@ export class AlertMetricsService {
 
   /**
    * Get dashboard counts for total, active (by severity), and resolved alerts.
+   * Excludes soft-deleted patients (patients.deleted_at IS NOT NULL).
    */
   async getDashboardCounts(organizationId: string) {
-    const totalAlerts = await this.alertRepository.count({
-      where: { organization_id: organizationId },
-    });
+    // total
+    const totalAlerts = await this.alertRepository
+      .createQueryBuilder('alert')
+      .innerJoin('alert.patient', 'patient')
+      .where('alert.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('patient.deleted_at IS NULL')
+      .getCount();
 
-    const resolvedAlerts = await this.alertRepository.count({
-      where: { status: AlertStatus.RESOLVED, organization_id: organizationId },
-    });
+    // resolved
+    const resolvedAlerts = await this.alertRepository
+      .createQueryBuilder('alert')
+      .innerJoin('alert.patient', 'patient')
+      .where('alert.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('patient.deleted_at IS NULL')
+      .andWhere('alert.status = :status', { status: AlertStatus.RESOLVED })
+      .getCount();
 
-    const activeTotal = await this.alertRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        organization_id: organizationId,
-      },
-    });
+    // active (not resolved)
+    const activeTotal = await this.alertRepository
+      .createQueryBuilder('alert')
+      .innerJoin('alert.patient', 'patient')
+      .where('alert.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('patient.deleted_at IS NULL')
+      .andWhere('alert.status != :status', { status: AlertStatus.RESOLVED })
+      .getCount();
 
-    const activeCritical = await this.alertRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        severity: AlertSeverity.CRITICAL,
-        organization_id: organizationId,
-      },
-    });
+    // active by severity
+    const activeCritical = await this.alertRepository
+      .createQueryBuilder('alert')
+      .innerJoin('alert.patient', 'patient')
+      .where('alert.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('patient.deleted_at IS NULL')
+      .andWhere('alert.status != :status', { status: AlertStatus.RESOLVED })
+      .andWhere('alert.severity = :sev', { sev: AlertSeverity.CRITICAL })
+      .getCount();
 
-    const activeImportant = await this.alertRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        severity: AlertSeverity.IMPORTANT,
-        organization_id: organizationId,
-      },
-    });
+    const activeImportant = await this.alertRepository
+      .createQueryBuilder('alert')
+      .innerJoin('alert.patient', 'patient')
+      .where('alert.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('patient.deleted_at IS NULL')
+      .andWhere('alert.status != :status', { status: AlertStatus.RESOLVED })
+      .andWhere('alert.severity = :sev', { sev: AlertSeverity.IMPORTANT })
+      .getCount();
 
-    const activeInformational = await this.alertRepository.count({
-      where: {
-        status: Not(AlertStatus.RESOLVED),
-        severity: AlertSeverity.INFORMATIONAL,
-        organization_id: organizationId,
-      },
-    });
+    const activeInformational = await this.alertRepository
+      .createQueryBuilder('alert')
+      .innerJoin('alert.patient', 'patient')
+      .where('alert.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('patient.deleted_at IS NULL')
+      .andWhere('alert.status != :status', { status: AlertStatus.RESOLVED })
+      .andWhere('alert.severity = :sev', { sev: AlertSeverity.INFORMATIONAL })
+      .getCount();
 
     return {
       success: true,
